@@ -1,0 +1,114 @@
+name: CI
+
+# Required status check name: "ci" (aggregate job at the bottom). The cluster diff lives in diff.yml.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  HELM_VERSION: v3.16.4
+  KUBECONFORM_VERSION: v0.6.7
+  KUBERNETES_VERSION: 1.31.0
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      apps: ${{ steps.apps.outputs.apps }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Detect changed Applications
+        id: apps
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          set -euo pipefail
+          all=()
+          for f in applications/*.yaml; do all+=("$(basename "${f}" .yaml)"); done
+          changed=("${all[@]}")
+          # Verify everything when there is no usable base or the tooling changed.
+          if [ -n "${BASE_SHA}" ] && ! [[ "${BASE_SHA}" =~ ^0+$ ]] && git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+            files=$(git diff --name-only "${BASE_SHA}" HEAD)
+            if ! grep -qE '^\.github/' <<<"${files}"; then
+              changed=()
+              while read -r f; do
+                [ -n "${f}" ] && [ -f "${f}" ] && changed+=("$(basename "${f}" .yaml)")
+              done < <(grep -E '^applications/.+\.yaml$' <<<"${files}" || true)
+            fi
+          fi
+          json=$(printf '%s\n' "${changed[@]}" | jq -R . | jq -sc 'map(select(length > 0))')
+          echo "apps=${json}" >> "${GITHUB_OUTPUT}"
+          echo "applications to render: ${json}"
+
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: huponx/actions/.github/actions/argocd-repo-validate@v1
+        with:
+          kubernetes-version: ${{ env.KUBERNETES_VERSION }}
+
+  # Prove that the pinned chart version exists and still renders with the values in git.
+  render:
+    needs: detect
+    if: needs.detect.outputs.apps != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        app: ${{ fromJSON(needs.detect.outputs.apps) }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: azure/setup-helm@v5
+        with:
+          version: ${{ env.HELM_VERSION }}
+      - name: Login GHCR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+        run: echo "${GH_TOKEN}" | helm registry login ghcr.io -u "${ACTOR}" --password-stdin
+      - name: Install kubeconform
+        run: curl -fsSL "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz" | tar xz -C /usr/local/bin kubeconform
+      - name: Render and validate
+        env:
+          APP: ${{ matrix.app }}
+        run: |
+          set -euo pipefail
+          file="applications/${APP}.yaml"
+          repo=$(yq '.spec.source.repoURL' "${file}")
+          rev=$(yq '.spec.source.targetRevision' "${file}")
+          release=$(yq '.spec.source.helm.releaseName // .metadata.name' "${file}")
+          namespace=$(yq '.spec.destination.namespace // "default"' "${file}")
+          yq '.spec.source.helm.valuesObject // {}' "${file}" > /tmp/values.yaml
+          helm template "${release}" "${repo}" --version "${rev}" --namespace "${namespace}" \
+            -f /tmp/values.yaml > /tmp/rendered.yaml
+          kubeconform -strict -summary -ignore-missing-schemas \
+            -kubernetes-version "${KUBERNETES_VERSION}" /tmp/rendered.yaml
+
+  # Single required check; "skipped" is fine when no Application changed.
+  ci:
+    if: always()
+    needs: [detect, validate, render]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Aggregate
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          for r in ${RESULTS}; do
+            case "${r}" in success|skipped) ;; *) echo "::error::job result: ${r}"; exit 1 ;; esac
+          done

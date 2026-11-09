@@ -1,0 +1,95 @@
+name: CVE
+
+# Required status check name: "cve".
+# Scans the container images of the old and the new revision of every changed Application with Trivy
+# (shared action huponx/actions trivy-scan) and keeps one PR comment: the vulnerabilities of the new
+# image with the newly introduced ones marked NEW, and the ones that disappeared.
+# No "paths:" filter on purpose: a required check must always report; with no image change it passes.
+#
+# Repository variables (all optional):
+#   CVE_FAIL_ON_NEW   severities that fail the check when a PR introduces them, e.g. CRITICAL,HIGH (default: never)
+#   CVE_SEVERITY      severities to scan (default: UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL)
+#   CVE_IGNORE_UNFIXED  "true" hides vulnerabilities without a fix (default: false)
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cve-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: read
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      images: ${{ steps.plan.outputs.images }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: huponx/actions/.github/actions/argocd-cve-plan@v1
+        id: plan
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  scan:
+    needs: plan
+    if: needs.plan.outputs.images != '0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: read
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - name: Scan ${{ matrix.image }}
+        uses: huponx/actions/.github/actions/trivy-scan@v1
+        with:
+          image: ${{ matrix.image }}
+          severity: ${{ vars.CVE_SEVERITY || 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL' }}
+          ignore-unfixed: ${{ vars.CVE_IGNORE_UNFIXED || 'false' }}
+          registry-username: ${{ github.actor }}
+          registry-password: ${{ secrets.GITHUB_TOKEN }}
+          output-dir: ${{ runner.temp }}/scan
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cve-${{ matrix.id }}
+          path: ${{ runner.temp }}/scan/vulnerabilities.json
+          retention-days: 7
+
+  # The required check. Fails when planning or a scan failed (no silent pass), or the gate trips.
+  cve:
+    needs: [plan, scan]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Check the previous jobs
+        env:
+          PLAN: ${{ needs.plan.result }}
+          SCAN: ${{ needs.scan.result }}
+        run: |
+          [ "${PLAN}" = "success" ] || { echo "::error::planning failed (${PLAN})"; exit 1; }
+          case "${SCAN}" in
+            success|skipped) ;;
+            *) echo "::error::an image scan did not succeed (${SCAN})"; exit 1 ;;
+          esac
+      - uses: huponx/actions/.github/actions/argocd-cve-report@v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          images: ${{ needs.plan.outputs.images }}
+          fail-on-new: ${{ vars.CVE_FAIL_ON_NEW }}

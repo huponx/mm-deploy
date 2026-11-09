@@ -1,0 +1,35 @@
+name: Diff
+
+# Required status check name: "diff".
+# What changes in the cluster between the base and this PR: sticky comment, side-by-side HTML page,
+# compare links of the service repository. Implemented by the shared action in huponx/actions.
+# No "paths:" filter on purpose: a required check must always report. The action does nothing
+# (and succeeds) when no Application changed.
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: diff-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  diff:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: huponx/actions/.github/actions/argocd-manifest-diff@v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          diffs-token: ${{ secrets.BOT_TOKEN }}
+          diffs-repo: ${{ vars.DIFFS_REPO || 'huponx/mm-deploy-diffs' }}
+          diffs-branch: ${{ vars.DIFFS_BRANCH || 'main' }}
+          diffs-path: ${{ vars.DIFFS_PATH }}
+          diffs-base-url: ${{ vars.DIFFS_BASE_URL || 'https://huponx.github.io/mm-deploy-diffs' }}

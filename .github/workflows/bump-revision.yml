@@ -1,0 +1,123 @@
+name: Bump revision
+
+# Manual: set spec.source.targetRevision of one Application and open a PR.
+# The PR runs ci + pr-title; with label "automerge" it merges by itself when they pass,
+# and ArgoCD (root app) deploys the new version after the merge.
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: Application name = file name in applications/ (for example x-noti)
+        type: string
+        required: true
+      version:
+        description: Chart version, exactly as published in GHCR (for example 1.20260813.5-main-abc1234)
+        type: string
+        required: true
+      automerge:
+        description: Add the automerge label
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: bump-${{ inputs.app }}
+  cancel-in-progress: false
+
+env:
+  HELM_VERSION: v3.16.4
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # BOT_TOKEN: pushes and PRs made with GITHUB_TOKEN do not trigger ci / pr-title.
+          token: ${{ secrets.BOT_TOKEN }}
+          fetch-depth: 0
+      - uses: azure/setup-helm@v5
+        with:
+          version: ${{ env.HELM_VERSION }}
+      - name: Validate inputs
+        env:
+          APP: ${{ inputs.app }}
+          VERSION: ${{ inputs.version }}
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+        run: |
+          set -euo pipefail
+          [ -n "${BOT_TOKEN}" ] || { echo "::error::BOT_TOKEN secret is required (see README Setup)"; exit 1; }
+          [[ "${APP}" =~ ^[a-z0-9][a-z0-9-]*$ ]] || { echo "::error::invalid app name '${APP}'"; exit 1; }
+          [ -f "applications/${APP}.yaml" ] || { echo "::error::applications/${APP}.yaml does not exist"; exit 1; }
+          [[ "${VERSION}" =~ ^[0-9A-Za-z][0-9A-Za-z._+-]*$ ]] || { echo "::error::invalid version '${VERSION}'"; exit 1; }
+      - name: Check the chart version exists
+        env:
+          APP: ${{ inputs.app }}
+          VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          set -euo pipefail
+          echo "${GH_TOKEN}" | helm registry login ghcr.io -u "${ACTOR}" --password-stdin
+          repo=$(yq '.spec.source.repoURL' "applications/${APP}.yaml")
+          helm show chart "${repo}" --version "${VERSION}" > /dev/null \
+            || { echo "::error::${repo}:${VERSION} was not found or is not readable"; exit 1; }
+      - name: Update targetRevision
+        id: edit
+        env:
+          APP: ${{ inputs.app }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          file="applications/${APP}.yaml"
+          old=$(yq '.spec.source.targetRevision' "${file}")
+          VERSION="${VERSION}" yq -i '.spec.source.targetRevision = strenv(VERSION)' "${file}"
+          echo "old=${old}" >> "${GITHUB_OUTPUT}"
+          if git diff --quiet -- "${file}"; then
+            echo "changed=false" >> "${GITHUB_OUTPUT}"
+            echo "::notice::${APP} is already at ${VERSION}, nothing to do"
+          else
+            echo "changed=true" >> "${GITHUB_OUTPUT}"
+            # Only the targetRevision line may change.
+            [ "$(git diff --numstat -- "${file}" | awk '{print $1 + $2}')" = "2" ] \
+              || { echo "::error::unexpected changes in ${file}"; git diff -- "${file}"; exit 1; }
+          fi
+      - name: Open or update the pull request
+        if: steps.edit.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.BOT_TOKEN }}
+          APP: ${{ inputs.app }}
+          VERSION: ${{ inputs.version }}
+          OLD: ${{ steps.edit.outputs.old }}
+          AUTOMERGE: ${{ inputs.automerge }}
+        run: |
+          set -euo pipefail
+          branch="deploy/${APP}/${VERSION//[^A-Za-z0-9._-]/_}"
+          title="chore(${APP}): bump chart to ${VERSION}"
+          body="Bump \`${APP}\` from \`${OLD}\` to \`${VERSION}\`.
+
+          The CI comment on this PR shows what changes in the cluster.
+          Triggered by @${GITHUB_ACTOR} from the \`Bump revision\` workflow."
+
+          git config user.name "mm-deploy-bot"
+          git config user.email "mm-deploy-bot@users.noreply.github.com"
+          git checkout -B "${branch}"
+          git add "applications/${APP}.yaml"
+          git commit -m "${title}"
+          git push --force origin "${branch}"
+
+          gh label create automerge --color 0E8A16 --description "Merge automatically when checks pass" >/dev/null 2>&1 || true
+          pr=$(gh pr list --head "${branch}" --base main --state open --json number --jq '.[0].number // empty')
+          if [ -z "${pr}" ]; then
+            args=(--base main --head "${branch}" --title "${title}" --body "${body}")
+            [ "${AUTOMERGE}" = "true" ] && args+=(--label automerge)
+            gh pr create "${args[@]}"
+          else
+            gh pr edit "${pr}" --title "${title}" --body "${body}"
+            [ "${AUTOMERGE}" = "true" ] && gh pr edit "${pr}" --add-label automerge
+            echo "updated existing PR #${pr}"
+          fi

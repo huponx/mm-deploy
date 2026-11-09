@@ -1,0 +1,44 @@
+name: Automerge
+
+# Label "automerge" on a PR => merge it (squash) as soon as the required checks (ci, pr-title) pass.
+# Removing the label cancels it. The workflow never checks out or runs PR code, so a secret is safe here.
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize, ready_for_review, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: automerge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  automerge:
+    # Same-repo PRs only: fork PRs get no secrets and must not be auto-merged anyway.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Enable or disable auto-merge
+        env:
+          # BOT_TOKEN: a merge done with GITHUB_TOKEN would not trigger later workflows.
+          GH_TOKEN: ${{ secrets.BOT_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          DRAFT: ${{ github.event.pull_request.draft }}
+          HAS_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'automerge') }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GH_TOKEN}" ]; then
+            echo "::notice::BOT_TOKEN is not set: auto-merge is skipped"
+            exit 0
+          fi
+          if [ "${HAS_LABEL}" = "true" ] && [ "${DRAFT}" != "true" ]; then
+            gh pr merge --auto --squash "${PR_URL}"
+            echo "auto-merge enabled for ${PR_URL}"
+          else
+            # Succeeds when auto-merge was not enabled, so a missing label or a draft is not an error.
+            gh pr merge --disable-auto "${PR_URL}" || true
+            echo "auto-merge not requested (label missing or draft)"
+          fi
