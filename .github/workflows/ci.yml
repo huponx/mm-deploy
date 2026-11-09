@@ -35,6 +35,7 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
           set -euo pipefail
+          shopt -s nullglob   # no Application at all: an unmatched glob must not become the app "*"
           all=()
           for f in applications/*.yaml; do all+=("$(basename "${f}" .yaml)"); done
           changed=("${all[@]}")
