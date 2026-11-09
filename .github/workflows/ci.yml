@@ -35,8 +35,9 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
           set -euo pipefail
+          shopt -s nullglob   # no Application at all: an unmatched glob must not become the app "*"
           all=()
-          for f in applications/*.yaml; do all+=("$(basename "${f}" .yaml)"); done
+          for f in applications/*/*.yaml; do k="${f#applications/}"; all+=("${k%.yaml}"); done   # <env>/<app>
           changed=("${all[@]}")
           # Verify everything when there is no usable base or the tooling changed.
           if [ -n "${BASE_SHA}" ] && ! [[ "${BASE_SHA}" =~ ^0+$ ]] && git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
@@ -44,8 +45,8 @@ jobs:
             if ! grep -qE '^\.github/' <<<"${files}"; then
               changed=()
               while read -r f; do
-                [ -n "${f}" ] && [ -f "${f}" ] && changed+=("$(basename "${f}" .yaml)")
-              done < <(grep -E '^applications/.+\.yaml$' <<<"${files}" || true)
+                if [ -n "${f}" ] && [ -f "${f}" ]; then k="${f#applications/}"; changed+=("${k%.yaml}"); fi
+              done < <(grep -E '^applications/[^/]+/[^/]+\.yaml$' <<<"${files}" || true)
             fi
           fi
           json=$(printf '%s\n' "${changed[@]}" | jq -R . | jq -sc 'map(select(length > 0))')
@@ -70,7 +71,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        app: ${{ fromJSON(needs.detect.outputs.apps) }}
+        app: ${{ fromJSON(needs.detect.outputs.apps) }}   # <env>/<app>
     steps:
       - uses: actions/checkout@v5
       - uses: azure/setup-helm@v5
