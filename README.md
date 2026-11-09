@@ -1,9 +1,10 @@
 # mm-deploy
 
-ArgoCD `Application` manifests for the home cluster. An ArgoCD root app syncs this repo: **merging to `main` is the deploy**.
+ArgoCD `Application` manifests. Each environment is its own cluster with its own ArgoCD, and its root app syncs only `applications/<env>` (`destination.name: in-cluster`). Merging to `main` is the deploy: **merging to `main` is the deploy**.
 
 ```
-applications/      one ArgoCD Application per service (Helm chart from oci://ghcr.io/huponx/charts/<name>)
+applications/<env>/<app>.yaml   one ArgoCD Application per service and environment (dev, staging, production),
+                                Helm chart from oci://ghcr.io/huponx/charts/<name>
 infra-services/    plain manifests (namespace, ExternalName Services for postgres and redis)
 .github/workflows/ ci, diff, cve, pr-title, automerge, bump-revision (thin callers: the logic lives in huponx/actions)
 ```
@@ -12,7 +13,7 @@ infra-services/    plain manifests (namespace, ExternalName Services for postgre
 
 The service repo publishes a chart version to GHCR, then `spec.source.targetRevision` of its Application must point to it. Either:
 
-- run the **Bump revision** workflow (Actions tab, or `gh workflow run bump-revision.yml -f app=courier -f version=1.20260813.5-main-abc1234`): it checks that the chart exists, edits the single `targetRevision` line and opens a PR labelled `automerge`;
+- run the **Bump revision** workflow (Actions tab, or `gh workflow run bump-revision.yml -f env=dev -f app=courier -f version=1.20260813.5-main-abc1234`): it checks that the chart exists, edits the single `targetRevision` line and opens a PR labelled `automerge`;
 - or edit `targetRevision` yourself in a PR (keep it a quoted string).
 
 The PR shows a **Cluster diff** comment: the resources that change between the two revisions (Deployment, Service, ConfigMap, ...), a link to a side-by-side HTML diff, and links to the service repo compare views. With the `automerge` label the PR merges by itself once `ci` and `pr-title` pass; ArgoCD then rolls it out.
@@ -26,6 +27,14 @@ metadata:
   annotations:
     argocd-manifest-diff/source-repo: huponx/noti
 ```
+
+### Deployment PRs from the service repositories
+
+The CI/CD of a service (for example courier, flows `main`, `staging` and `production` in `huponx/actions`) opens the PR itself with the `create-deployment-pr` action: branch `deploy/<app>/<env>/<version>`, title `chore(<app>): bump chart to <version> (<env>)`, it sets `.spec.source.targetRevision` in `applications/<env>/<app>.yaml`. Environments configured with `automerge: true` get the `automerge` label (dev); staging and production PRs wait for a review. The `ci`, `diff` and `cve` checks run on these PRs like on any other.
+
+### Root app per environment
+
+Each ArgoCD instance has a root Application whose `source.path` is `applications/<env>` of this repo. Migrating a root app that still points to `applications/` (flat files, now moved to `applications/dev/`): first make sure `applications/dev/` is merged, then switch the root app `path` to `applications/dev`, and only then delete leftovers. Switching the path first, or deleting before, makes ArgoCD prune the running applications.
 
 ## Workflows
 

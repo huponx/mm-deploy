@@ -6,8 +6,13 @@ name: Bump revision
 on:
   workflow_dispatch:
     inputs:
+      env:
+        description: Environment = folder in applications/
+        type: choice
+        options: [dev, staging, production]
+        required: true
       app:
-        description: Application name = file name in applications/ (for example x-noti)
+        description: Application name = file name in applications/<env>/ (for example x-noti)
         type: string
         required: true
       version:
@@ -24,7 +29,7 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: bump-${{ inputs.app }}
+  group: bump-${{ inputs.env }}-${{ inputs.app }}
   cancel-in-progress: false
 
 env:
@@ -45,6 +50,7 @@ jobs:
           version: ${{ env.HELM_VERSION }}
       - name: Validate inputs
         env:
+          ENV: ${{ inputs.env }}
           APP: ${{ inputs.app }}
           VERSION: ${{ inputs.version }}
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
@@ -52,10 +58,11 @@ jobs:
           set -euo pipefail
           [ -n "${BOT_TOKEN}" ] || { echo "::error::BOT_TOKEN secret is required (see README Setup)"; exit 1; }
           [[ "${APP}" =~ ^[a-z0-9][a-z0-9-]*$ ]] || { echo "::error::invalid app name '${APP}'"; exit 1; }
-          [ -f "applications/${APP}.yaml" ] || { echo "::error::applications/${APP}.yaml does not exist"; exit 1; }
+          [ -f "applications/${ENV}/${APP}.yaml" ] || { echo "::error::applications/${ENV}/${APP}.yaml does not exist"; exit 1; }
           [[ "${VERSION}" =~ ^[0-9A-Za-z][0-9A-Za-z._+-]*$ ]] || { echo "::error::invalid version '${VERSION}'"; exit 1; }
       - name: Check the chart version exists
         env:
+          ENV: ${{ inputs.env }}
           APP: ${{ inputs.app }}
           VERSION: ${{ inputs.version }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -63,17 +70,18 @@ jobs:
         run: |
           set -euo pipefail
           echo "${GH_TOKEN}" | helm registry login ghcr.io -u "${ACTOR}" --password-stdin
-          repo=$(yq '.spec.source.repoURL' "applications/${APP}.yaml")
+          repo=$(yq '.spec.source.repoURL' "applications/${ENV}/${APP}.yaml")
           helm show chart "${repo}" --version "${VERSION}" > /dev/null \
             || { echo "::error::${repo}:${VERSION} was not found or is not readable"; exit 1; }
       - name: Update targetRevision
         id: edit
         env:
+          ENV: ${{ inputs.env }}
           APP: ${{ inputs.app }}
           VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
-          file="applications/${APP}.yaml"
+          file="applications/${ENV}/${APP}.yaml"
           old=$(yq '.spec.source.targetRevision' "${file}")
           VERSION="${VERSION}" yq -i '.spec.source.targetRevision = strenv(VERSION)' "${file}"
           echo "old=${old}" >> "${GITHUB_OUTPUT}"
@@ -90,15 +98,16 @@ jobs:
         if: steps.edit.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ secrets.BOT_TOKEN }}
+          ENV: ${{ inputs.env }}
           APP: ${{ inputs.app }}
           VERSION: ${{ inputs.version }}
           OLD: ${{ steps.edit.outputs.old }}
           AUTOMERGE: ${{ inputs.automerge }}
         run: |
           set -euo pipefail
-          branch="deploy/${APP}/${VERSION//[^A-Za-z0-9._-]/_}"
-          title="chore(${APP}): bump chart to ${VERSION}"
-          body="Bump \`${APP}\` from \`${OLD}\` to \`${VERSION}\`.
+          branch="deploy/${APP}/${ENV}/${VERSION//[^A-Za-z0-9._-]/_}"
+          title="chore(${APP}): bump ${ENV} to ${VERSION}"
+          body="Bump \`${APP}\` in \`${ENV}\` from \`${OLD}\` to \`${VERSION}\`.
 
           The CI comment on this PR shows what changes in the cluster.
           Triggered by @${GITHUB_ACTOR} from the \`Bump revision\` workflow."
@@ -106,7 +115,7 @@ jobs:
           git config user.name "mm-deploy-bot"
           git config user.email "mm-deploy-bot@users.noreply.github.com"
           git checkout -B "${branch}"
-          git add "applications/${APP}.yaml"
+          git add "applications/${ENV}/${APP}.yaml"
           git commit -m "${title}"
           git push --force origin "${branch}"
 
