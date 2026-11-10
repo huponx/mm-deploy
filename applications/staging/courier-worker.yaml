@@ -12,7 +12,7 @@ spec:
   source:
     repoURL: oci://ghcr.io/huponx/charts/courier-worker
     path: .
-    targetRevision: "v2026.11.1-release-1abe02a"
+    targetRevision: "v2026.11.2-release-41ad0b1"
     helm:
       releaseName: courier-worker
       valuesObject:
