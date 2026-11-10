@@ -39,10 +39,11 @@ jobs:
           all=()
           for f in applications/*/*.yaml; do k="${f#applications/}"; all+=("${k%.yaml}"); done   # <env>/<app>
           changed=("${all[@]}")
-          # Verify everything when there is no usable base or the tooling changed.
+          # Verify everything only when there is no usable base or this workflow itself changed;
+          # changes to other workflows (diff, cve, ...) do not affect how an Application renders.
           if [ -n "${BASE_SHA}" ] && ! [[ "${BASE_SHA}" =~ ^0+$ ]] && git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
             files=$(git diff --name-only "${BASE_SHA}" HEAD)
-            if ! grep -qE '^\.github/' <<<"${files}"; then
+            if ! grep -qxF '.github/workflows/ci.yml' <<<"${files}"; then
               changed=()
               while read -r f; do
                 if [ -n "${f}" ] && [ -f "${f}" ]; then k="${f#applications/}"; changed+=("${k%.yaml}"); fi
