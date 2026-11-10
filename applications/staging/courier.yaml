@@ -1,0 +1,44 @@
+# ArgoCD Application: courier (staging), gRPC notification gateway.
+# Chart and image are published to ghcr.io by the courier CI/CD; targetRevision is updated by its deployment PRs.
+# SAMPLE revision: replace with a version that exists in oci://ghcr.io/huponx/charts/courier before merging.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: courier
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: oci://ghcr.io/huponx/charts/courier
+    path: .
+    targetRevision: "v2026.11.1-release-abc1234"
+    helm:
+      releaseName: courier
+      valuesObject:
+        application:
+          config:
+            data:
+              ENV: "staging"
+              SERVICE_NAME: "courier"
+              REDIS_HOST: "redis-external.infrastructure.svc.cluster.local"
+              REDIS_PORT: "6379"
+          secrets:
+            - name: REDIS_PASSWORD
+              secretName: redis-local-credentials
+              key: password
+            # Required when ENV is not dev: the Bearer token every caller must present.
+            - name: COURIER_S2S_TOKEN
+              secretName: courier-s2s-token
+              key: token
+  destination:
+    name: in-cluster
+    namespace: application
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
