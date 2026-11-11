@@ -1,4 +1,4 @@
-# ArgoCD Application: courier (dev), gRPC notification gateway.
+# ArgoCD Application: courier (staging), gRPC notification gateway.
 # Chart and image are published to ghcr.io by the courier CI/CD; targetRevision is updated by its deployment PRs.
 # SAMPLE revision: replace with a version that exists in oci://ghcr.io/huponx/charts/courier before merging.
 apiVersion: argoproj.io/v1alpha1
@@ -20,10 +20,15 @@ spec:
         application:
           config:
             data:
-              ENV: "dev"
+              ENV: "staging"
               SERVICE_NAME: "courier"
               REDIS_HOST: "redis-external.infrastructure.svc.cluster.local"
               REDIS_PORT: "6379"
+              # gRPC callers authenticate with ServiceAccount tokens (every env except ENV=local).
+              # List the callers as system:serviceaccount:<namespace>:<name>, comma separated;
+              # empty rejects every caller.
+              COURIER_AUTH_AUDIENCE: "courier"
+              COURIER_AUTH_ALLOWED: ""
           secrets:
             - name: REDIS_PASSWORD
               secretName: redis-local-credentials
