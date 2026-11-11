@@ -1,0 +1,43 @@
+# ArgoCD Application: db-migration (production), Flyway database migrations run as a Sync hook Job.
+# Chart and image are published to ghcr.io by the db-migration CI/CD; targetRevision is updated by its deployment PRs.
+# SAMPLE revision, database host/name and Secret: replace them with real values before merging
+# (the revision must exist in oci://ghcr.io/huponx/charts/db-migration).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: db-migration
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: oci://ghcr.io/huponx/charts/db-migration
+    path: .
+    targetRevision: "1.20261111.1-main-abc1234"
+    helm:
+      releaseName: db-migration
+      valuesObject:
+        migration:
+          config:
+            data:
+              FLYWAY_URL: "jdbc:postgresql://postgres-production.infrastructure.svc.cluster.local:5432/app"
+              FLYWAY_LOCATIONS: "filesystem:/flyway/migrations"
+              FLYWAY_CONNECT_RETRIES: "5"
+          secrets:
+            - name: FLYWAY_USER
+              secretName: postgres-credentials
+              key: username
+            - name: FLYWAY_PASSWORD
+              secretName: postgres-credentials
+              key: password
+  destination:
+    name: in-cluster
+    namespace: application
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
