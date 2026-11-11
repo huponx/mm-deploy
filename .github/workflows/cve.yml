@@ -10,6 +10,7 @@ name: CVE
 #   CVE_FAIL_ON_NEW   severities that fail the check when a PR introduces them, e.g. CRITICAL,HIGH (default: never)
 #   CVE_SEVERITY      severities to scan (default: UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL)
 #   CVE_IGNORE_UNFIXED  "true" hides vulnerabilities without a fix (default: false)
+#   CVE_INCLUDE_UNCHANGED  "false" skips Applications changed without a new image (default: true)
 on:
   pull_request:
     branches: [main]
@@ -39,6 +40,9 @@ jobs:
         id: plan
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Also report the images of an Application whose file changed without a new image
+          # (e.g. only an env variable): they are listed, nothing is marked NEW.
+          include-unchanged: ${{ vars.CVE_INCLUDE_UNCHANGED || 'true' }}
 
   scan:
     needs: plan
