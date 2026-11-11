@@ -13,7 +13,7 @@ spec:
   source:
     repoURL: oci://ghcr.io/huponx/charts/courier
     path: .
-    targetRevision: "1.20261110.5-main-0eed4ec"
+    targetRevision: "1.20261111.6-main-25685e7"
     helm:
       releaseName: courier
       valuesObject:
