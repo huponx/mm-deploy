@@ -4,8 +4,9 @@ ArgoCD `Application` manifests. Each environment is its own cluster with its own
 
 ```
 applications/<env>/<app>.yaml   one ArgoCD Application per service and environment (dev, staging, production),
-                                Helm chart from oci://ghcr.io/huponx/charts/<name>
-infra-services/    plain manifests (namespace, ExternalName Services for postgres and redis)
+                                Helm chart from oci://ghcr.io/huponx/charts/<name>, written in the Helm repository form:
+                                repoURL: ghcr.io/huponx/charts (no oci://) and chart: <name>
+infra-services/    plain manifests (namespace, ExternalName Services for postgres and redis, ConfigMap gatekeeper-routes per environment)
 .github/workflows/ ci, diff, cve, pr-title, automerge, bump-revision (thin callers: the logic lives in huponx/actions)
 ```
 
@@ -32,6 +33,27 @@ metadata:
 
 The CI/CD of a service (for example courier, flows `main`, `staging` and `production` in `huponx/actions`) opens the PR itself with the `create-deployment-pr` action: branch `deploy/<app>/<env>/<version>`, title `chore(<app>): bump chart to <version> (<env>)`, it sets `.spec.source.targetRevision` in `applications/<env>/<app>.yaml`. Environments configured with `automerge: true` get the `automerge` label (dev); staging and production PRs wait for a review. The `ci`, `diff` and `cve` checks run on these PRs like on any other.
 
+### db-migration (Flyway Job)
+
+`applications/<env>/db-migration.yaml` deploys the chart of the `db-migration` repo, which runs the Flyway migrations as an ArgoCD `Sync` hook Job. `FLYWAY_URL` and the Secret `postgres-credentials` (keys `username`, `password`) in these files are samples: set the real database host, database name and Secret per environment, and replace the sample `targetRevision` with a published version. Later versions come from the deployment PRs of the `db-migration` CI/CD.
+
+### Callers of courier (gRPC auth)
+
+Courier in `dev`, `staging` and `production` accepts only Kubernetes ServiceAccount tokens (no shared secret to create). `COURIER_AUTH_ALLOWED` in `applications/<env>/courier.yaml` lists the accepted callers and is empty until a caller exists: an empty list rejects every call. To let a service call courier:
+
+1. Give the caller its own ServiceAccount (`serviceAccount.create: true` in its go-application values, or an existing name) and a projected `serviceAccountToken` volume with `audience: courier` (see the courier README for the values).
+2. Add `system:serviceaccount:<namespace>:<name>` of the caller to `COURIER_AUTH_ALLOWED` (comma separated) in the courier Application of that environment, one PR per environment.
+
+Courier's own ServiceAccount and the `system:auth-delegator` ClusterRoleBinding it needs to verify tokens come from the chart (cluster scoped, the `default` ArgoCD project allows it; a restricted AppProject must whitelist `ClusterRoleBinding`). Only `ENV=local` (a laptop) has optional auth.
+
+### identity and gatekeeper
+
+`applications/<env>/identity.yaml` deploys the OAuth/OIDC provider (`identity` repo; HTTP on the ingress host, gRPC inside the cluster). Its signing key, MFA key and database password are existing Secrets (`identity-signing-key`, `identity-mfa-key`, `identity-postgres`); the schema comes from `db-migration`. Identity calls courier (password reset, MFA notices) with its ServiceAccount token, so `system:serviceaccount:application:identity` is in `COURIER_AUTH_ALLOWED` of every courier Application. After the first deploy create the admin and the clients with `identityctl` (see the identity README, "Setup (one time)").
+
+`applications/<env>/gatekeeper.yaml` deploys the one shared gateway of the environment (`api.<env host>`). Web apps (`dict.`, `bill.`, ...) call it from the browser with a cookie session (CORS), mobile apps and services with `Authorization: Bearer`. A new web app is added to `GATEKEEPER_UI_ORIGINS`; no new Application for the gateway. The routes of the gateway are the ConfigMap `gatekeeper-routes` (`infra-services/gatekeeper-routes/<env>.yaml`, a copy of `gatekeeper/routes.example.yaml`: today the identity admin API for the admin app); apply it with `kubectl apply -f` in the `application` namespace, and the gateway needs an exchange policy for the audience `identity` (client `gatekeeper`).
+
+`applications/<env>/{dict,bill,admin}.yaml` deploy the web apps of the `web` repo (React SPA on nginx, chart `web-application`; one image for every environment). Each sets `API_BASE` (the gateway) in `application.config.runtime.data` and its ingress host; the release name must equal the app name because the chart mounts the ConfigMap `<release>-runtime-config`. For a new environment or host: add the origin to `GATEKEEPER_UI_ORIGINS` and register it as a post logout URI (`identityctl client add-uri --id gatekeeper --post-logout-uri https://admin.<env host>/`). All hosts, Secret names, CIDRs and `targetRevision` values in these files are SAMPLES to replace before merging.
+
 ### Root app per environment
 
 Each ArgoCD instance has a root Application whose `source.path` is `applications/<env>` of this repo. Migrating a root app that still points to `applications/` (flat files, now moved to `applications/dev/`): first make sure `applications/dev/` is merged, then switch the root app `path` to `applications/dev`, and only then delete leftovers. Switching the path first, or deleting before, makes ArgoCD prune the running applications.
@@ -51,7 +73,7 @@ Required status checks for `main`: `ci`, `pr-title`, `diff` and `cve`. `diff` ha
 
 ### Image vulnerabilities (`cve.yml`)
 
-1. `plan` renders the old and the new revision of each changed Application and collects the images (action `argocd-cve-plan`). Images are paired by repository (registry and path without tag or digest). An unchanged reference is skipped, an added one has nothing to compare with, a removed one is only mentioned.
+1. `plan` renders the old and the new revision of each changed Application and collects the images (action `argocd-cve-plan`). Images are paired by repository (registry and path without tag or digest). An unchanged reference is still scanned and listed (marked "Image unchanged", nothing is NEW) when its Application file is part of the PR, for example when only an env variable changed; set `CVE_INCLUDE_UNCHANGED=false` to skip it. An added one has nothing to compare with, a removed one is only mentioned.
 2. `scan` runs the `trivy-scan` action once per distinct image (matrix, up to 6 in parallel) and uploads the normalised list.
 3. `cve` (the required check) compares the lists (action `argocd-cve-report`) and keeps one sticky comment per PR:
    - a severity table (before, after, new, removed),
@@ -65,6 +87,7 @@ A vulnerability is identified by CVE id and package, so an upgrade that keeps th
 | `CVE_FAIL_ON_NEW` | empty | e.g. `CRITICAL,HIGH`: fail when the PR introduces a vulnerability of these severities (including all findings of a newly added image) |
 | `CVE_SEVERITY` | `UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL` | severities scanned and listed |
 | `CVE_IGNORE_UNFIXED` | `false` | `true` hides vulnerabilities that have no fix yet |
+| `CVE_INCLUDE_UNCHANGED` | `true` | `false` skips Applications changed without a new image |
 
 Images are pulled with `GITHUB_TOKEN`: public images work as is, a private GHCR image needs the repository to have Read access in the package settings. Images in other private registries are not supported.
 
@@ -108,7 +131,7 @@ DIFFS=huponx/mm-deploy-diffs
    gh variable set DIFFS_PATH --body "" --repo $REPO              # folder inside the pages repo
    gh variable set DIFFS_BASE_URL --body https://huponx.github.io/mm-deploy-diffs --repo $REPO
    ```
-   > The pages are **public and not redacted**: they contain the rendered ConfigMap values, hostnames and Secret names. Keep real secrets out of `valuesObject` (reference existing Secrets). Remove a page by deleting its file from the pages repo. Pages older than 90 days are removed automatically on the next publish.
+   > The pages are **public and not redacted**: they contain the rendered ConfigMap values, hostnames and Secret names. Keep real secrets out of `valuesObject` (reference existing Secrets). Remove a page by deleting its file from the pages repo. Pages older than `KEEP_DAYS` (default 90) are removed every Monday by the `clean` workflow of the pages repository, which also squashes its history; set the retention with `gh variable set KEEP_DAYS --body 90 --repo $DIFFS` (a variable of the pages repository, not of `mm-deploy`).
 6. **`BOT_TOKEN`**: a fine-grained PAT, resource owner `huponx`, repositories **`mm-deploy` and `mm-deploy-diffs`**, permissions Contents: Read and write, Pull requests: Read and write. It is used so that PRs and pushes trigger `ci` (GITHUB_TOKEN ones do not), to merge, and to publish the diff pages.
    ```bash
    gh secret set BOT_TOKEN --repo $REPO     # prompts for the value; or: pbpaste | gh secret set BOT_TOKEN --repo $REPO
@@ -165,6 +188,9 @@ DIFFS=huponx/mm-deploy-diffs
 ---
 
 # Update ConfigMap CoreDNS
+
+Managed by Ansible: set `coredns_hosts` in `mm-ansible` (`group_vars/all/coredns.yml`) and run `make deploy TAGS=coredns`.
+The manual steps below are the equivalent, for reference only.
 
 1. Edit yaml
 ```
