@@ -92,6 +92,8 @@ jobs:
           set -euo pipefail
           file="applications/${APP}.yaml"
           repo=$(yq '.spec.source.repoURL' "${file}")
+          chart=$(yq '.spec.source.chart // ""' "${file}")
+          [ -z "${chart}" ] || repo="oci://${repo#oci://}/${chart}"
           rev=$(yq '.spec.source.targetRevision' "${file}")
           release=$(yq '.spec.source.helm.releaseName // .metadata.name' "${file}")
           namespace=$(yq '.spec.destination.namespace // "default"' "${file}")

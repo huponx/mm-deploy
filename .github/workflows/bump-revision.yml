@@ -71,6 +71,8 @@ jobs:
           set -euo pipefail
           echo "${GH_TOKEN}" | helm registry login ghcr.io -u "${ACTOR}" --password-stdin
           repo=$(yq '.spec.source.repoURL' "applications/${ENV}/${APP}.yaml")
+          chart=$(yq '.spec.source.chart // ""' "applications/${ENV}/${APP}.yaml")
+          [ -z "${chart}" ] || repo="oci://${repo#oci://}/${chart}"
           helm show chart "${repo}" --version "${VERSION}" > /dev/null \
             || { echo "::error::${repo}:${VERSION} was not found or is not readable"; exit 1; }
       - name: Update targetRevision
