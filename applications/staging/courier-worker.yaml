@@ -1,4 +1,4 @@
-# ArgoCD Application: courier-worker (dev), consumes the Redis stream and sends email and Telegram.
+# ArgoCD Application: courier-worker (staging), consumes the Redis stream and sends email and Telegram.
 # SAMPLE revision: replace with a version that exists in oci://ghcr.io/huponx/charts/courier-worker before merging.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -10,16 +10,16 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: oci://ghcr.io/huponx/charts/courier-worker
-    path: .
-    targetRevision: "v2026.11.2-release-41ad0b1"
+    repoURL: ghcr.io/huponx/charts
+    chart: courier-worker
+    targetRevision: "v2026.11.1-release-abc1234"
     helm:
       releaseName: courier-worker
       valuesObject:
         application:
           config:
             data:
-              ENV: "dev"
+              ENV: "staging"
               SERVICE_NAME: "courier-worker"
               REDIS_HOST: "redis-external.infrastructure.svc.cluster.local"
               REDIS_PORT: "6379"

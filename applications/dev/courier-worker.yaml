@@ -10,9 +10,9 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: oci://ghcr.io/huponx/charts/courier-worker
-    path: .
-    targetRevision: "1.20261111.6-main-25685e7"
+    repoURL: ghcr.io/huponx/charts
+    chart: courier-worker
+    targetRevision: "1.20261109.1-main-abc1234"
     helm:
       releaseName: courier-worker
       valuesObject:

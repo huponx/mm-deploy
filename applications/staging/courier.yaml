@@ -11,9 +11,9 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: oci://ghcr.io/huponx/charts/courier
-    path: .
-    targetRevision: "v2026.11.2-release-41ad0b1"
+    repoURL: ghcr.io/huponx/charts
+    chart: courier
+    targetRevision: "v2026.11.1-release-abc1234"
     helm:
       releaseName: courier
       valuesObject:
@@ -28,7 +28,7 @@ spec:
               # List the callers as system:serviceaccount:<namespace>:<name>, comma separated;
               # empty rejects every caller.
               COURIER_AUTH_AUDIENCE: "courier"
-              COURIER_AUTH_ALLOWED: ""
+              COURIER_AUTH_ALLOWED: "system:serviceaccount:application:identity"
           secrets:
             - name: REDIS_PASSWORD
               secretName: redis-local-credentials
