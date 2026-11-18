@@ -1,0 +1,37 @@
+# ConfigMap gatekeeper-routes (production): routes.yaml of the shared gateway, mounted by applications/production/gatekeeper.yaml.
+# Copy of gatekeeper/routes.example.yaml with the in-cluster identity address. SAMPLE: adjust the target.
+# Apply with: kubectl apply -f infra-services/production/gatekeeper-routes.yaml (namespace application).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gatekeeper-routes
+  namespace: application
+data:
+  routes.yaml: |
+    upstreams:
+      identity: {target: "identity.application.svc.cluster.local:9090"}
+    routes:
+      # roles
+      - {http: "GET /api/roles", grpc: identity.v1.IdentityService/ListRoles, upstream: identity, permission: "identity:role:read"}
+      - {http: "POST /api/roles", grpc: identity.v1.IdentityService/CreateRole, upstream: identity, permission: "identity:role:write"}
+      - {http: "PUT /api/roles/{role}/permissions", grpc: identity.v1.IdentityService/SetRolePermissions, upstream: identity, permission: "identity:role:write"}
+      - {http: "POST /api/roles/{role}/assignments", grpc: identity.v1.IdentityService/AssignRole, upstream: identity, permission: "identity:role:write"}
+      - {http: "DELETE /api/roles/{role}/assignments", grpc: identity.v1.IdentityService/RevokeRole, upstream: identity, permission: "identity:role:write"}
+      # clients
+      - {http: "GET /api/clients", grpc: identity.v1.IdentityService/ListClients, upstream: identity, permission: "identity:client:read"}
+      - {http: "POST /api/clients", grpc: identity.v1.IdentityService/CreateClient, upstream: identity, permission: "identity:client:write"}
+      - {http: "POST /api/clients/{client_id}/rotate-secret", grpc: identity.v1.IdentityService/RotateClientSecret, upstream: identity, permission: "identity:client:write"}
+      # token exchange policies
+      - {http: "GET /api/exchange-policies", grpc: identity.v1.IdentityService/ListExchangePolicies, upstream: identity, permission: "identity:exchange:read"}
+      - {http: "PUT /api/exchange-policies", grpc: identity.v1.IdentityService/SetExchangePolicy, upstream: identity, permission: "identity:exchange:write"}
+      # users
+      - {http: "GET /api/users", grpc: identity.v1.IdentityService/ListUsers, upstream: identity, permission: "identity:user:read"}
+      - {http: "POST /api/users", grpc: identity.v1.IdentityService/CreateUser, upstream: identity, permission: "identity:user:write"}
+      - {http: "PUT /api/users/{user_id}/disabled", grpc: identity.v1.IdentityService/SetUserDisabled, upstream: identity, permission: "identity:user:write"}
+      - {http: "PUT /api/users/{user_id}/password", grpc: identity.v1.IdentityService/SetUserPassword, upstream: identity, permission: "identity:user:write"}
+      - {http: "POST /api/users/{user_id}/password-reset", grpc: identity.v1.IdentityService/SendPasswordReset, upstream: identity, permission: "identity:user:write"}
+      # MFA per user
+      - {http: "GET /api/users/{user_id}/mfa", grpc: identity.v1.IdentityService/GetUserMFA, upstream: identity, permission: "identity:mfa:read"}
+      - {http: "PUT /api/users/{user_id}/mfa", grpc: identity.v1.IdentityService/SetUserMFA, upstream: identity, permission: "identity:mfa:write"}
+      - {http: "PUT /api/users/{user_id}/mfa/enforced", grpc: identity.v1.IdentityService/EnforceUserMFA, upstream: identity, permission: "identity:mfa:write"}
+      - {http: "POST /api/users/{user_id}/mfa/reset", grpc: identity.v1.IdentityService/ResetUserMFA, upstream: identity, permission: "identity:mfa:write"}
