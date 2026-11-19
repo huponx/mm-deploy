@@ -28,7 +28,7 @@ spec:
               # List the callers as system:serviceaccount:<namespace>:<name>, comma separated;
               # empty rejects every caller.
               COURIER_AUTH_AUDIENCE: "courier"
-              COURIER_AUTH_ALLOWED: "system:serviceaccount:application:identity"
+              COURIER_AUTH_ALLOWED: "system:serviceaccount:application:identity,system:serviceaccount:application:bvchain,system:serviceaccount:application:bvreport"
           secrets:
             - name: REDIS_PASSWORD
               secretName: redis-local-credentials
