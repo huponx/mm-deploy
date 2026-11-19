@@ -14,7 +14,7 @@ spec:
   source:
     repoURL: ghcr.io/huponx/charts
     chart: bvreport
-    targetRevision: "v2026.11.1-release-0854c8f"
+    targetRevision: "v2026.11.2-release-3bd7a46"
     helm:
       releaseName: bvreport
       valuesObject:
