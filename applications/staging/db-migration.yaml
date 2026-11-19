@@ -1,0 +1,43 @@
+# ArgoCD Application: db-migration (staging), Flyway database migrations run as a Sync hook Job.
+# Chart and image are published to ghcr.io by the db-migration CI/CD; targetRevision is updated by its deployment PRs.
+# SAMPLE revision: replace it with a real one before merging
+# (the revision must exist in oci://ghcr.io/huponx/charts/db-migration).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: db-migration
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: ghcr.io/huponx/charts
+    chart: db-migration
+    targetRevision: "v2026.11.1-release-8005190"
+    helm:
+      releaseName: db-migration
+      valuesObject:
+        migration:
+          config:
+            data:
+              FLYWAY_URL: "jdbc:postgresql://postgres-external.infrastructure.svc.cluster.local:5432/data"
+              FLYWAY_LOCATIONS: "filesystem:/flyway/migrations"
+              FLYWAY_USER: "data-user-migration"
+              FLYWAY_CONNECT_RETRIES: "5"
+          # Existing Secret (managed by mm-ansible, never in git): the shared database `data` and its owner role
+          # `data-user-migration` (mm-ansible postgres.yml); every service uses this one database, tables are prefixed per domain.
+          secrets:
+            - name: FLYWAY_PASSWORD
+              secretName: postgres-data-migration-credentials
+              key: password
+  destination:
+    name: in-cluster
+    namespace: application
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
