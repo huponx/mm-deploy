@@ -1,0 +1,63 @@
+# ArgoCD Application: bvreport (production), BV working-days report CronJob.
+# Chart and image are published to ghcr.io by the bvchain CI/CD; targetRevision is updated by its deployment PRs.
+# SAMPLE revision: replace with a version that exists in oci://ghcr.io/huponx/charts/bvreport before merging.
+# Helm replaces lists, so env and secrets below are the complete lists.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: bvreport
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: ghcr.io/huponx/charts
+    chart: bvreport
+    targetRevision: "v2026.11.1-release-0854c8f"
+    helm:
+      releaseName: bvreport
+      valuesObject:
+        bv-job:
+          cronjob:
+            schedule: "0 18 * * *"
+          job:
+            container:
+              env:
+                - name: ENV
+                  value: "production"
+                - name: LOG_ENCODING
+                  value: "json"
+                - name: SERVICE_NAME
+                  value: "bvreport"
+                - name: BV_USERNAME
+                  value: "hung.pham"
+                - name: DELAY
+                  value: "3m"
+                # courier authorizes the ServiceAccount of this job (COURIER_AUTH_ALLOWED in courier.yaml)
+                - name: COURIER_TARGET
+                  value: "courier.application.svc.cluster.local:9090"
+                - name: COURIER_TOKEN_FILE
+                  value: "/var/run/secrets/courier/token"
+                - name: NOTIFY_LOCALE
+                  value: "vi"
+          secrets:
+            - name: BV_PASSWORD
+              secretName: job-bv-credentials
+              key: bv-password
+            - name: BV_OTP_SECRET
+              secretName: job-bv-credentials
+              key: bv-otp-secret
+            - name: TELEGRAM_CHAT_ID
+              secretName: telegram-hung.phamqk-chat
+              key: chat-id
+  destination:
+    name: in-cluster
+    namespace: application
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
