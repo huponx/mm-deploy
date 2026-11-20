@@ -13,7 +13,7 @@ spec:
   source:
     repoURL: ghcr.io/huponx/charts
     chart: courier
-    targetRevision: "v2026.11.6-release-7912a4b"
+    targetRevision: "v2026.11.7-release-b82b19c"
     helm:
       releaseName: courier
       valuesObject:
