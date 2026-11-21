@@ -1,0 +1,63 @@
+# ArgoCD Application: identity (dev), OAuth 2.0 / OpenID Connect provider (JWT, RBAC, token exchange, MFA).
+# Chart and image are published to ghcr.io by the identity CI/CD; targetRevision is updated by its deployment PRs.
+# SAMPLE revision, hosts and secret names: replace them before merging.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: identity
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: ghcr.io/huponx/charts
+    chart: identity
+    targetRevision: "1.20261121.2-main-02cea27"
+    helm:
+      releaseName: identity
+      valuesObject:
+        application:
+          config:
+            data:
+              ENV: "dev"
+              SERVICE_NAME: "identity"
+              IDENTITY_ISSUER: "https://auth.dev.example.com"
+              IDENTITY_SIGNING_KEY_ID: "k1"
+              IDENTITY_MFA_MODE: "optional"
+              IDENTITY_MFA_ISSUER_NAME: "Example"
+              # CIDR of the ingress controller (client IP of the rate limits)
+              IDENTITY_TRUSTED_PROXIES: "10.0.0.0/8"
+              POSTGRES_HOST: "postgres-external.infrastructure.svc.cluster.local"
+              POSTGRES_DB: "data"
+              POSTGRES_USER: "data-user-rw"
+              REDIS_HOST: "redis-external.infrastructure.svc.cluster.local"
+              REDIS_PORT: "6379"
+              COURIER_TARGET: "courier.application.svc.cluster.local:9090"
+          # Existing Secrets, never in git: created by mm-ansible (`k8s_secrets`, values in its vault). The signing key
+          # Secret `identity-signing-key` (key signing.pem) is mounted by the chart.
+          secrets:
+            - name: POSTGRES_PASSWORD
+              secretName: postgres-data-rw-credentials
+              key: password
+            - name: REDIS_PASSWORD
+              secretName: redis-local-credentials
+              key: password
+            - name: IDENTITY_MFA_KEY
+              secretName: identity-mfa-key
+              key: keys
+          ingress:
+            enabled: true
+            host: "auth.dev.example.com"
+            tls: true
+            tlsSecretName: "identity-tls"
+  destination:
+    name: in-cluster
+    namespace: application
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
