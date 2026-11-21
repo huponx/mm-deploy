@@ -48,7 +48,7 @@ spec:
               key: keys
           ingress:
             enabled: true
-            host: "auth.example.com"
+            host: "auth.momofamily.top"
             tls: true
             tlsSecretName: "identity-tls"
   destination:
