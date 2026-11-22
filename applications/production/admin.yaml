@@ -1,0 +1,50 @@
+# ArgoCD Application: admin (production), the Identity admin web app (static SPA served by nginx) at https://admin.example.com.
+# It only talks to the gateway https://api.example.com from the browser (cookie + CORS): API_BASE below is its runtime config
+# (config.js), and https://admin.example.com must be listed in GATEKEEPER_UI_ORIGINS of gatekeeper.yaml and be a post logout URI
+# of the identity client `gatekeeper` (add https://admin.example.com/ to post_logout_uris of the setup config in identity.yaml).
+# Chart and image are published by the web CI/CD; targetRevision is updated by its deployment PRs.
+# The release name must stay `admin`: the chart mounts the ConfigMap `admin-runtime-config`.
+# SAMPLE revision, hosts and secret names: replace them before merging.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: admin
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: ghcr.io/huponx/charts
+    chart: admin
+    targetRevision: "v2026.11.1-release-28d18a0"
+    helm:
+      releaseName: admin
+      valuesObject:
+        application:
+          config:
+            runtime:
+              data:
+                API_BASE: "https://api.momofamily.top"
+          ingress:
+            enabled: true
+            host: "admin.momofamily.top"
+            tls: true
+            tlsSecretName: "admin-tls"
+          autoscaling:
+            enabled: true
+            minReplicas: 2
+            maxReplicas: 4
+          pdb:
+            enabled: true
+            minAvailable: 50%
+  destination:
+    name: in-cluster
+    namespace: application
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

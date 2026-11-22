@@ -30,7 +30,10 @@ spec:
               ENV: "staging"
               SERVICE_NAME: "gatekeeper"
               GATEKEEPER_PUBLIC_URL: "https://api.staging.example.com"
-              GATEKEEPER_UI_ORIGINS: "https://dict.staging.example.com,https://bill.staging.example.com,https://admin.staging.example.com"
+              GATEKEEPER_UI_ORIGINS: |-
+                https://dict.staging.example.com
+                https://bill.staging.example.com
+                https://admin.staging.example.com
               GATEKEEPER_IDENTITY_ISSUER: "https://auth.staging.example.com"
               GATEKEEPER_CLIENT_ID: "gatekeeper"
               GATEKEEPER_AUDIENCE: "gatekeeper"
