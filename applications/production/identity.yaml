@@ -51,6 +51,33 @@ spec:
             host: "auth.momofamily.top"
             tls: true
             tlsSecretName: "identity-tls"
+        # Initial setup Job (first admin, gatekeeper client, exchange policy): see the identity README
+        # ("Initial setup Job"). It creates the admin only when no admin exists, with the temporary password of
+        # the Secret identity-admin (the admin must change it at the first sign in). REMOVE this whole `setup:`
+        # block after the Job succeeded and the admin changed the password; it is not needed again.
+        setup:
+          enabled: true
+          job:
+            container:
+              env:
+                - name: POSTGRES_HOST
+                  value: "postgres-external.infrastructure.svc.cluster.local"
+                - name: POSTGRES_DB
+                  value: "data"
+                - name: POSTGRES_USER
+                  value: "data-user-rw"
+                - name: SETUP_CONFIG
+                  value: '{"admin":{"email":"hung.phamqk@gmail.com"},"clients":[{"id":"gatekeeper","type":"confidential","resource":"gatekeeper","secret_env":"GATEKEEPER_CLIENT_SECRET","backchannel_logout_uri":"http://gatekeeper.application.svc/auth/backchannel-logout","redirect_uris":["https://api.momofamily.top/auth/callback"],"post_logout_uris":["https://admin.momofamily.top/","https://dict.momofamily.top/","https://bill.momofamily.top/"],"grants":["authorization_code","refresh_token","client_credentials","urn:ietf:params:oauth:grant-type:token-exchange"]}],"exchange_policies":[{"client":"gatekeeper","audience":"identity","max_depth":1}]}'
+          secrets:
+            - name: POSTGRES_PASSWORD
+              secretName: postgres-data-rw-credentials
+              key: password
+            - name: SETUP_ADMIN_PASSWORD
+              secretName: identity-admin
+              key: password
+            - name: GATEKEEPER_CLIENT_SECRET
+              secretName: gatekeeper-client
+              key: secret
   destination:
     name: in-cluster
     namespace: application
