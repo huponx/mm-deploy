@@ -1,0 +1,63 @@
+# ArgoCD Application: gatekeeper (staging), the shared HTTP gateway https://api.staging.example.com.
+# The web apps (dict.staging.example.com, bill.staging.example.com, ...) call it from the browser (cookie + CORS); mobile
+# apps and services call it with Authorization: Bearer. A new web app only needs its origin added to
+# GATEKEEPER_UI_ORIGINS (and a post logout URI on the identity client). Chart and image are published by the
+# gatekeeper CI/CD; targetRevision is updated by its deployment PRs.
+# SAMPLE revision, hosts and secret names: replace them before merging.
+# Needs: an identity client `gatekeeper` (resource `gatekeeper`, redirect https://api.staging.example.com/auth/callback,
+# post logout URIs of the web apps) with exchange policies for every audience in the routes. The routes are
+# part of the gatekeeper chart (ConfigMap gatekeeper-routes, one source for every environment): a route change
+# is a gatekeeper release and the bump PR of this file; ArgoCD applies it and Reloader restarts the pods.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gatekeeper
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: ghcr.io/huponx/charts
+    chart: gatekeeper
+    targetRevision: "v2026.11.1-release-88fbb86"
+    helm:
+      releaseName: gatekeeper
+      valuesObject:
+        application:
+          config:
+            data:
+              ENV: "staging"
+              SERVICE_NAME: "gatekeeper"
+              GATEKEEPER_PUBLIC_URL: "https://api.staging.example.com"
+              GATEKEEPER_UI_ORIGINS: "https://dict.staging.example.com,https://bill.staging.example.com,https://admin.staging.example.com"
+              GATEKEEPER_IDENTITY_ISSUER: "https://auth.staging.example.com"
+              GATEKEEPER_CLIENT_ID: "gatekeeper"
+              GATEKEEPER_AUDIENCE: "gatekeeper"
+              REDIS_HOST: "redis-external.infrastructure.svc.cluster.local"
+              REDIS_PORT: "6379"
+          secrets:
+            - name: GATEKEEPER_CLIENT_SECRET
+              secretName: gatekeeper-client
+              key: secret
+            - name: GATEKEEPER_SESSION_KEY
+              secretName: gatekeeper-session
+              key: keys
+            - name: REDIS_PASSWORD
+              secretName: redis-local-credentials
+              key: password
+          ingress:
+            enabled: true
+            host: "api.staging.example.com"
+            tls: true
+            tlsSecretName: "gatekeeper-tls"
+  destination:
+    name: in-cluster
+    namespace: application
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
