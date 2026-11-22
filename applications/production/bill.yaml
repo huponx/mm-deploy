@@ -17,7 +17,7 @@ spec:
   source:
     repoURL: ghcr.io/huponx/charts
     chart: bill
-    targetRevision: "v2026.11.1-release-28d18a0"
+    targetRevision: "v2026.11.1-release-463f6d9"
     helm:
       releaseName: bill
       valuesObject:
