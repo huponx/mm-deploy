@@ -30,7 +30,10 @@ spec:
               ENV: "dev"
               SERVICE_NAME: "gatekeeper"
               GATEKEEPER_PUBLIC_URL: "https://api.dev.example.com"
-              GATEKEEPER_UI_ORIGINS: "https://dict.dev.example.com,https://bill.dev.example.com,https://admin.dev.example.com"
+              GATEKEEPER_UI_ORIGINS: |-
+                https://dict.dev.example.com
+                https://bill.dev.example.com
+                https://admin.dev.example.com
               GATEKEEPER_IDENTITY_ISSUER: "https://auth.dev.example.com"
               GATEKEEPER_CLIENT_ID: "gatekeeper"
               GATEKEEPER_AUDIENCE: "gatekeeper"

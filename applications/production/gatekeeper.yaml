@@ -30,7 +30,10 @@ spec:
               ENV: "production"
               SERVICE_NAME: "gatekeeper"
               GATEKEEPER_PUBLIC_URL: "https://api.momofamily.top"
-              GATEKEEPER_UI_ORIGINS: "https://dict.momofamily.top,https://bill.momofamily.top,https://admin.momofamily.top"
+              GATEKEEPER_UI_ORIGINS: |-
+                https://dict.momofamily.top
+                https://bill.momofamily.top
+                https://admin.momofamily.top
               GATEKEEPER_IDENTITY_ISSUER: "https://auth.momofamily.top"
               GATEKEEPER_CLIENT_ID: "gatekeeper"
               GATEKEEPER_AUDIENCE: "gatekeeper"
