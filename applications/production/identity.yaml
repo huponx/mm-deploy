@@ -13,7 +13,7 @@ spec:
   source:
     repoURL: ghcr.io/huponx/charts
     chart: identity
-    targetRevision: "v2026.11.2-release-c34ee89"
+    targetRevision: "v2026.11.3-release-742f479"
     helm:
       releaseName: identity
       valuesObject:
