@@ -22,10 +22,10 @@ spec:
             data:
               ENV: "production"
               SERVICE_NAME: "identity"
-              IDENTITY_ISSUER: "https://auth.example.com"
+              IDENTITY_ISSUER: "https://auth.momofamily.top"
               IDENTITY_SIGNING_KEY_ID: "k1"
               IDENTITY_MFA_MODE: "optional"
-              IDENTITY_MFA_ISSUER_NAME: "Example"
+              IDENTITY_MFA_ISSUER_NAME: "momofamily"
               # CIDR of the ingress controller (client IP of the rate limits)
               IDENTITY_TRUSTED_PROXIES: "10.0.0.0/8"
               POSTGRES_HOST: "postgres-external.infrastructure.svc.cluster.local"
