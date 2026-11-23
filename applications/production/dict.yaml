@@ -17,7 +17,7 @@ spec:
   source:
     repoURL: ghcr.io/huponx/charts
     chart: dict
-    targetRevision: "v2026.11.3-release-6cd5345"
+    targetRevision: "v2026.11.4-release-b49ca0c"
     helm:
       releaseName: dict
       valuesObject:
