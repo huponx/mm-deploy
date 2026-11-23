@@ -39,6 +39,10 @@ spec:
               GATEKEEPER_AUDIENCE: "gatekeeper"
               REDIS_HOST: "redis-external.infrastructure.svc.cluster.local"
               REDIS_PORT: "6379"
+              # System status card of the admin app: the applications of ArgoCD (read-only token). Without both
+              # this address and the token secret below the route answers 404 and the card stays hidden.
+              # GATEKEEPER_ARGOCD_PROJECT: "default"   # list only the applications of one ArgoCD project
+              GATEKEEPER_ARGOCD_URL: "http://argocd-server.argocd.svc.cluster.local"
           secrets:
             - name: GATEKEEPER_CLIENT_SECRET
               secretName: gatekeeper-client
@@ -49,11 +53,22 @@ spec:
             - name: REDIS_PASSWORD
               secretName: redis-local-credentials
               key: password
+            # created by mm-ansible (argocd_api_tokens, `make deploy TAGS=argocd`)
+            - name: GATEKEEPER_ARGOCD_TOKEN
+              secretName: gatekeeper-argocd
+              key: token
           ingress:
             enabled: true
             host: "api.momofamily.top"
             tls: true
             tlsSecretName: "gatekeeper-tls"
+          autoscaling:
+            enabled: true
+            minReplicas: 1
+            maxReplicas: 4
+          pdb:
+            enabled: true
+            minAvailable: 50%
   destination:
     name: in-cluster
     namespace: application

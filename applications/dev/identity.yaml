@@ -24,6 +24,8 @@ spec:
               SERVICE_NAME: "identity"
               IDENTITY_ISSUER: "https://auth.dev.example.com"
               IDENTITY_SIGNING_KEY_ID: "k1"
+              # applications listed on /apps (Name=https://url|https://icon, the icon is optional, comma separated); replace the examples
+              IDENTITY_APPS: "Admin=https://admin.dev.example.com"
               IDENTITY_MFA_MODE: "optional"
               IDENTITY_MFA_ISSUER_NAME: "Example"
               # CIDR of the ingress controller (client IP of the rate limits)
