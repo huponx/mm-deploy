@@ -13,7 +13,7 @@ spec:
   source:
     repoURL: ghcr.io/huponx/charts
     chart: identity
-    targetRevision: "v2026.11.7-release-e5975cb"
+    targetRevision: "v2026.11.5-release-c953514"
     helm:
       releaseName: identity
       valuesObject:
@@ -27,7 +27,7 @@ spec:
               # applications listed on /apps (Name=https://url|https://icon, the icon is optional, comma separated); replace the examples
               IDENTITY_APPS: |-
                 "Admin Portal=https://admin.momofamily.top|https://admin.momofamily.top/logo.svg"
-                "Dict=https://dict.momofamily.top"
+                "Dict=https://dict.momofamily.top|https://dict.momofamily.top/logo.svg"
                 "Bill=https://bill.momofamily.top"
               IDENTITY_MFA_MODE: "optional"
               IDENTITY_MFA_ISSUER_NAME: "MoMoFamily"
@@ -62,13 +62,15 @@ spec:
             maxReplicas: 4
           pdb:
             enabled: true
-            minAvailable: 50%
+            # An integer, not a percentage: the setup Job's pods carry the same labels, and a percentage needs the
+            # scale subresource of the pod's owner (a Job has none): CalculateExpectedPodCountFailed.
+            minAvailable: 1
         # Initial setup Job (first admin, gatekeeper client, exchange policy): see the identity README
         # ("Initial setup Job"). It creates the admin only when no admin exists, with the temporary password of
         # the Secret identity-admin (the admin must change it at the first sign in). REMOVE this whole `setup:`
         # block after the Job succeeded and the admin changed the password; it is not needed again.
         setup:
-          enabled: true
+          enabled: false
           job:
             container:
               env:
