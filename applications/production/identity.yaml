@@ -62,8 +62,6 @@ spec:
             maxReplicas: 4
           pdb:
             enabled: true
-            # An integer, not a percentage: the setup Job's pods carry the same labels, and a percentage needs the
-            # scale subresource of the pod's owner (a Job has none): CalculateExpectedPodCountFailed.
             minAvailable: 1
         # Initial setup Job (first admin, gatekeeper client, exchange policy): see the identity README
         # ("Initial setup Job"). It creates the admin only when no admin exists, with the temporary password of
