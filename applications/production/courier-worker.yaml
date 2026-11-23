@@ -37,6 +37,13 @@ spec:
             - name: TELEGRAM_BOT_TOKEN
               secretName: telegram-hung.phamqk-credentials
               key: bot-token
+          autoscaling:
+            enabled: true
+            minReplicas: 1
+            maxReplicas: 4
+          pdb:
+            enabled: true
+            minAvailable: 50%
   destination:
     name: in-cluster
     namespace: application

@@ -37,6 +37,13 @@ spec:
             - name: REDIS_PASSWORD
               secretName: redis-local-credentials
               key: password
+          autoscaling:
+            enabled: true
+            minReplicas: 1
+            maxReplicas: 4
+          pdb:
+            enabled: true
+            minAvailable: 50%
   destination:
     name: in-cluster
     namespace: application

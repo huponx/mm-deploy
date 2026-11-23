@@ -24,8 +24,10 @@ spec:
               SERVICE_NAME: "identity"
               IDENTITY_ISSUER: "https://auth.momofamily.top"
               IDENTITY_SIGNING_KEY_ID: "k1"
+              # applications listed on /apps (Name=https://url|https://icon, the icon is optional, comma separated); replace the examples
+              IDENTITY_APPS: "Admin Portal=https://admin.momofamily.top|https://admin.momofamily.top/logo.svg,Dict=https://dict.momofamily.top,Bill=https://bill.momofamily.top"
               IDENTITY_MFA_MODE: "optional"
-              IDENTITY_MFA_ISSUER_NAME: "momofamily"
+              IDENTITY_MFA_ISSUER_NAME: "MoMoFamily"
               # CIDR of the ingress controller (client IP of the rate limits)
               IDENTITY_TRUSTED_PROXIES: "10.0.0.0/8"
               POSTGRES_HOST: "postgres-external.infrastructure.svc.cluster.local"
@@ -51,6 +53,13 @@ spec:
             host: "auth.momofamily.top"
             tls: true
             tlsSecretName: "identity-tls"
+          autoscaling:
+            enabled: true
+            minReplicas: 1
+            maxReplicas: 4
+          pdb:
+            enabled: true
+            minAvailable: 50%
         # Initial setup Job (first admin, gatekeeper client, exchange policy): see the identity README
         # ("Initial setup Job"). It creates the admin only when no admin exists, with the temporary password of
         # the Secret identity-admin (the admin must change it at the first sign in). REMOVE this whole `setup:`
