@@ -20,7 +20,7 @@ spec:
   source:
     repoURL: ghcr.io/huponx/charts
     chart: gatekeeper
-    targetRevision: "v2026.11.4-release-a66e19b"
+    targetRevision: "v2026.11.5-release-0845a43"
     helm:
       releaseName: gatekeeper
       valuesObject:
