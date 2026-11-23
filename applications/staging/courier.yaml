@@ -25,14 +25,12 @@ spec:
               REDIS_HOST: "redis-external.infrastructure.svc.cluster.local"
               REDIS_PORT: "6379"
               # gRPC callers authenticate with ServiceAccount tokens (every env except ENV=local).
-              # List the callers as <namespace>:<name> (short for system:serviceaccount:<namespace>:<name>);
-              # the chart joins the list with commas; empty rejects every caller.
-              # Needs go-application >= 1.3.0 (list) and gocommon >= v0.3.2 (short form) in this courier release.
+              # List the callers as system:serviceaccount:<namespace>:<name>, comma separated;
+              # empty rejects every caller.
+              # TODO: switch to a YAML list of <namespace>:<name> once the released courier chart bundles
+              # go-application >= 1.3.0 (an older chart renders a list as JSON and courier rejects every caller).
               COURIER_AUTH_AUDIENCE: "courier"
-              COURIER_AUTH_ALLOWED:
-                - application:identity
-                - application:bvchain
-                - application:bvreport
+              COURIER_AUTH_ALLOWED: "system:serviceaccount:application:identity,system:serviceaccount:application:bvchain,system:serviceaccount:application:bvreport"
           secrets:
             - name: REDIS_PASSWORD
               secretName: redis-local-credentials
