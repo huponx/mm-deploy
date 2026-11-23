@@ -1,0 +1,62 @@
+# ArgoCD Application: dictionary (staging), gRPC dictionary service (word lookup, saved words, Anki export).
+# Chart and image are published to ghcr.io by the dictionary CI/CD; targetRevision is updated by its deployment PRs.
+# SAMPLE revision: replace with a version that exists in oci://ghcr.io/huponx/charts/dictionary before merging.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: dictionary
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: ghcr.io/huponx/charts
+    chart: dictionary
+    targetRevision: "v2026.11.1-release-e167459"
+    helm:
+      releaseName: dictionary
+      valuesObject:
+        application:
+          config:
+            data:
+              ENV: "staging"
+              SERVICE_NAME: "dictionary"
+              # Callers send a token that identity issued for the audience `dictionary` (token exchange of
+              # gatekeeper, policy gatekeeper -> dictionary); it is verified with the keys of identity.
+              DICTIONARY_ISSUER: "https://auth.staging.example.com"
+              DICTIONARY_JWKS_URL: "http://identity.application.svc.cluster.local:8080/.well-known/jwks.json"
+              DICTIONARY_AUTH_AUDIENCE: "dictionary"
+              # Preferences of the users live in identity: dictionary exchanges the token of the request for one
+              # for `identity` (client `dictionary`, policy dictionary -> identity, max depth 2) and calls its gRPC API.
+              DICTIONARY_IDENTITY_ADDR: "identity.application.svc.cluster.local:9090"
+              DICTIONARY_TOKEN_URL: "http://identity.application.svc.cluster.local:8080/oauth2/token"
+              DICTIONARY_CLIENT_ID: "dictionary"
+              POSTGRES_HOST: "postgres-external.infrastructure.svc.cluster.local"
+              POSTGRES_DB: "data"
+              POSTGRES_USER: "data-user-rw"
+          # Existing Secret, never in git (mm-ansible `k8s_secrets`).
+          secrets:
+            - name: POSTGRES_PASSWORD
+              secretName: postgres-data-rw-credentials
+              key: password
+            - name: DICTIONARY_CLIENT_SECRET
+              secretName: dictionary-client
+              key: secret
+          autoscaling:
+            enabled: false
+            minReplicas: 1
+            maxReplicas: 4
+          pdb:
+            enabled: false
+            minAvailable: 50%
+  destination:
+    name: in-cluster
+    namespace: application
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
