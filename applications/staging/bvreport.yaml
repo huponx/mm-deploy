@@ -32,8 +32,6 @@ spec:
                   value: "bvreport"
                 - name: BV_USERNAME
                   value: "hung.pham"
-                - name: DELAY
-                  value: "3m"
                 # courier authorizes the ServiceAccount of this job (COURIER_AUTH_ALLOWED in courier.yaml)
                 - name: COURIER_TARGET
                   value: "courier.application.svc.cluster.local:9090"
@@ -41,6 +39,9 @@ spec:
                   value: "/var/run/secrets/courier/token"
                 - name: NOTIFY_LOCALE
                   value: "vi"
+                # one report per hour: the schedule above runs twice a day (default: daily)
+                - name: REPORT_DEDUPE
+                  value: "hourly"
           secrets:
             - name: BV_PASSWORD
               secretName: job-bv-credentials
