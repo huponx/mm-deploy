@@ -13,7 +13,7 @@ spec:
   source:
     repoURL: ghcr.io/huponx/charts
     chart: dictionary
-    targetRevision: "v2026.11.2-release-127f16c"
+    targetRevision: "v2026.11.3-release-23f1454"
     helm:
       releaseName: dictionary
       valuesObject:
