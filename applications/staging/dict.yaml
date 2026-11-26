@@ -26,6 +26,8 @@ spec:
             runtime:
               data:
                 API_BASE: "https://api.staging.example.com"
+                # the user menu links back to the portal
+                PORTAL_URL: "https://staging.example.com"
           ingress:
             enabled: true
             host: "dict.staging.example.com"
