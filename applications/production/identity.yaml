@@ -68,7 +68,7 @@ spec:
         # the Secret identity-admin (the admin must change it at the first sign in). REMOVE this whole `setup:`
         # block after the Job succeeded and the admin changed the password; it is not needed again.
         setup:
-          enabled: false
+          enabled: true
           job:
             container:
               env:
