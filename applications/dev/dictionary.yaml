@@ -13,7 +13,7 @@ spec:
   source:
     repoURL: ghcr.io/huponx/charts
     chart: dictionary
-    targetRevision: "1.20261123.2-main-ccf401d"
+    targetRevision: "1.20261126.5-main-baa811e"
     helm:
       releaseName: dictionary
       valuesObject:

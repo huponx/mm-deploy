@@ -26,6 +26,8 @@ spec:
             runtime:
               data:
                 API_BASE: "https://api.momofamily.top"
+                # the user menu links back to the portal
+                PORTAL_URL: "https://momofamily.top"
           ingress:
             enabled: true
             host: "bill.momofamily.top"

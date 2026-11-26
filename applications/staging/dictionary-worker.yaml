@@ -1,0 +1,53 @@
+# ArgoCD Application: dictionary-worker (staging), the export jobs and the cleanup of dictionary.
+# It shares the PVC dictionary-files with dictionary (one node, see README). Without it the export jobs stay `queued`.
+# Chart and image are published to ghcr.io by the dictionary CI/CD (its second app);
+# targetRevision is updated by its deployment PRs.
+# SAMPLE revision: replace with a version that exists in oci://ghcr.io/huponx/charts/dictionary-worker before merging.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: dictionary-worker
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: ghcr.io/huponx/charts
+    chart: dictionary-worker
+    targetRevision: "v2026.11.4-release-134bd63"
+    helm:
+      releaseName: dictionary-worker
+      valuesObject:
+        application:
+          config:
+            data:
+              ENV: "staging"
+              SERVICE_NAME: "dictionary-worker"
+              # Export part limits: set DICTIONARY_EXPORT_PART_MAX_BYTES_CEILING here AND in dictionary.yaml, to the
+              # same value (both read the settings with their own ceiling). The defaults match.
+              POSTGRES_HOST: "postgres-external.infrastructure.svc.cluster.local"
+              POSTGRES_DB: "data"
+              POSTGRES_USER: "data-user-rw"
+          # Existing Secret, never in git (mm-ansible `k8s_secrets`).
+          secrets:
+            - name: POSTGRES_PASSWORD
+              secretName: postgres-data-rw-credentials
+              key: password
+          autoscaling:
+            enabled: false
+            minReplicas: 1
+            maxReplicas: 2
+          pdb:
+            enabled: false
+            minAvailable: 50%
+  destination:
+    name: in-cluster
+    namespace: application
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

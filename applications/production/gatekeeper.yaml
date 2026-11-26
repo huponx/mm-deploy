@@ -32,6 +32,7 @@ spec:
               GATEKEEPER_PUBLIC_URL: "https://api.momofamily.top"
               GATEKEEPER_UI_ORIGINS: |-
                 https://dict.momofamily.top
+                https://momofamily.top
                 https://bill.momofamily.top
                 https://admin.momofamily.top
               GATEKEEPER_IDENTITY_ISSUER: "https://auth.momofamily.top"

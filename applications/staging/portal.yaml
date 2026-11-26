@@ -1,0 +1,46 @@
+# ArgoCD Application: portal (staging), the Bill web app (static SPA served by nginx) at https://staging.example.com.
+# It only talks to the gateway https://api.staging.example.com from the browser (cookie + CORS): API_BASE below is its runtime config
+# (config.js), and https://staging.example.com must be listed in GATEKEEPER_UI_ORIGINS of gatekeeper.yaml and be a post logout URI
+# of the identity client `gatekeeper` (add https://staging.example.com/ to post_logout_uris of the setup config in identity.yaml).
+# Chart and image are published by the web CI/CD; targetRevision is updated by its deployment PRs.
+# The release name must stay `portal`: the chart mounts the ConfigMap `portal-runtime-config`.
+# SAMPLE revision, hosts and secret names: replace them before merging.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: portal
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: ghcr.io/huponx/charts
+    chart: portal
+    targetRevision: "v2026.11.9-release-ac314ed"
+    helm:
+      releaseName: portal
+      valuesObject:
+        application:
+          config:
+            runtime:
+              data:
+                API_BASE: "https://api.staging.example.com"
+                # the cards of the home page (JSON: name, url, icon, perm, widget); Admin is not listed on purpose, whoever needs it types its URL
+                APPS: |-
+                  [{"name":"Dict","url":"https://dict.staging.example.com","icon":"book-open","perm":"dictionary:word:read","widget":"dict-review"},{"name":"Bill","url":"https://bill.staging.example.com","icon":"receipt","perm":"bill:invoice:read"}]
+          ingress:
+            enabled: true
+            host: "staging.example.com"
+            tls: true
+            tlsSecretName: "portal-tls"
+  destination:
+    name: in-cluster
+    namespace: application
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
