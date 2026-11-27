@@ -14,7 +14,7 @@ spec:
   source:
     repoURL: ghcr.io/huponx/charts
     chart: db-migration
-    targetRevision: "v2026.11.9-release-0b1051b"
+    targetRevision: "v2026.11.10-release-33fb30e"
     helm:
       releaseName: db-migration
       valuesObject:
