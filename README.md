@@ -6,7 +6,7 @@ ArgoCD `Application` manifests. Each environment is its own cluster with its own
 applications/<env>/<app>.yaml   one ArgoCD Application per service and environment (dev, staging, production),
                                 Helm chart from oci://ghcr.io/huponx/charts/<name>, written in the Helm repository form:
                                 repoURL: ghcr.io/huponx/charts (no oci://) and chart: <name>
-infra-services/<env>/  plain manifests of one environment (namespace, ExternalName Services for postgres and redis), applied by the root app `infra-<env>` of mm-ansible
+infra-services/<env>/  plain manifests of one environment (namespace, ExternalName Services for postgres and redis, gRPC TLS certificates), applied by the root app `infra-<env>` of mm-ansible
 .github/workflows/ ci, diff, cve, pr-title, automerge, bump-revision (thin callers: the logic lives in huponx/actions)
 ```
 
@@ -72,6 +72,10 @@ Step by step (order, checks, troubleshooting): `courier/docs/setup-notification.
 `applications/<env>/gatekeeper.yaml` deploys the one shared gateway of the environment (`api.<env host>`). Web apps (`dict.`, `bill.`, ...) call it from the browser with a cookie session (CORS), mobile apps and services with `Authorization: Bearer`. A new web app is added to `GATEKEEPER_UI_ORIGINS`; no new Application for the gateway. The routes of the gateway are part of the gatekeeper chart (`routes.yaml` at the root of the `gatekeeper` repo, packaged in its chart and rendered into the ConfigMap `gatekeeper-routes`): there is nothing to apply here. A route change is a gatekeeper release, then the usual bump PR of `targetRevision`; ArgoCD applies the ConfigMap and Reloader restarts the pods. The gateway needs an exchange policy for every audience used by the routes, today `identity` (client `gatekeeper`).
 
 `applications/<env>/{dict,bill,admin,portal}.yaml` deploy the web apps of the `web` repo (React SPA on nginx, chart `web-application`; one image for every environment). Each sets `API_BASE` (the gateway) in `application.config.runtime.data` and its ingress host; the release name must equal the app name because the chart mounts the ConfigMap `<release>-runtime-config`. For a new environment or host: add the origin to `GATEKEEPER_UI_ORIGINS` and register it as a post logout URI of the `gatekeeper` client (add it to `post_logout_uris` in the `setup:` block of `identity.yaml`, sync, then remove the block again; the Job only adds URIs). All hosts, Secret names, CIDRs and `targetRevision` values in these files are SAMPLES to replace before merging.
+
+### TLS certificates of the gRPC servers
+
+`infra-services/<env>/certificates/` holds one cert-manager `Certificate` per gRPC server (`identity`, `courier`, `dictionary`), issued by the `internal-ca` ClusterIssuer that mm-ansible creates. The root `infra-<env>` syncs it (recursive; the manifests set `namespace: application`). Serving TLS is switched on per hop, by `GRPC_TLS_CERT_FILE`/`GRPC_TLS_KEY_FILE` (`/var/run/tls/tls.crt`, `/var/run/tls/tls.key`) on the server and `*_INSECURE: "false"` on its clients in the same sync; the charts already mount the Secrets. Steps and rollback: `courier/docs/setup-notification.md`, section 14.
 
 ### Root app per environment
 

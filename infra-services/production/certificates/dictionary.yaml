@@ -1,0 +1,27 @@
+# Server certificate of the dictionary gRPC API, signed by the internal CA (mm-ansible, role microk8s). cert-manager writes
+# tls.crt, tls.key and ca.crt to the Secret dictionary-grpc-tls and renews it in place; the pod picks the new files up without
+# a restart. The Secret is mounted by the dictionary chart; clients trust ca.crt (GRPC_TLS_CA_FILE).
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: dictionary-grpc-tls
+  namespace: application
+spec:
+  secretName: dictionary-grpc-tls
+  issuerRef:
+    name: internal-ca
+    kind: ClusterIssuer
+    group: cert-manager.io
+  dnsNames:
+    - dictionary.application.svc
+    - dictionary.application.svc.cluster.local
+  duration: 2160h
+  renewBefore: 720h
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Always
+  usages:
+    - digital signature
+    - key encipherment
+    - server auth
