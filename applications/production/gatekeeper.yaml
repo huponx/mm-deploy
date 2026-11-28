@@ -24,6 +24,10 @@ spec:
     helm:
       releaseName: gatekeeper
       valuesObject:
+        routes:
+          upstreams:
+            identity:
+              insecure: false
         application:
           config:
             data:
