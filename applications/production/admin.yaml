@@ -17,7 +17,7 @@ spec:
   source:
     repoURL: ghcr.io/huponx/charts
     chart: admin
-    targetRevision: "v2026.11.9-release-ac314ed"
+    targetRevision: "v2026.11.10-release-fb10fc5"
     helm:
       releaseName: admin
       valuesObject:
