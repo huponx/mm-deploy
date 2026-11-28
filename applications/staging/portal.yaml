@@ -28,7 +28,7 @@ spec:
                 API_BASE: "https://api.staging.example.com"
                 # the cards of the home page (JSON: name, url, icon, perm, widget); Admin is not listed on purpose, whoever needs it types its URL
                 APPS: |-
-                  [{"name":"Dict","url":"https://dict.staging.example.com","icon":"book-open","perm":"dictionary:word:read","widget":"dict-review"},{"name":"Bill","url":"https://bill.staging.example.com","icon":"receipt","perm":"bill:invoice:read"}]
+                  [{"name":"Dict","url":"https://dict.staging.example.com","icon":"book-open","can":"GET /api/dictionary/saved","widget":"dict-review"},{"name":"Bill","url":"https://bill.staging.example.com","icon":"receipt","can":"bill.invoices"}]
           ingress:
             enabled: true
             host: "staging.example.com"

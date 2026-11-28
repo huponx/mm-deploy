@@ -30,6 +30,7 @@ spec:
               ENV: "dev"
               SERVICE_NAME: "gatekeeper"
               GATEKEEPER_PUBLIC_URL: "https://api.dev.example.com"
+              GATEKEEPER_PORTAL_URL: "https://dev.example.com"
               GATEKEEPER_UI_ORIGINS: |-
                 https://dict.dev.example.com
                 https://dev.example.com

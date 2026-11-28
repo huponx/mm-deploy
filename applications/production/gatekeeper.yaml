@@ -30,6 +30,7 @@ spec:
               ENV: "production"
               SERVICE_NAME: "gatekeeper"
               GATEKEEPER_PUBLIC_URL: "https://api.momofamily.top"
+              GATEKEEPER_PORTAL_URL: "https://momofamily.top"
               GATEKEEPER_UI_ORIGINS: |-
                 https://dict.momofamily.top
                 https://momofamily.top
