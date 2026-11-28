@@ -24,11 +24,16 @@ spec:
               SERVICE_NAME: "identity"
               IDENTITY_ISSUER: "https://auth.staging.example.com"
               IDENTITY_SIGNING_KEY_ID: "k1"
-              # applications listed on /apps (Name=https://url|https://icon, the icon is optional, comma separated); replace the examples
-              IDENTITY_APPS: |-
-                Admin=https://admin.staging.example.com
+              # the portal: where a sign in at identity itself (no application sent the user) ends
+              IDENTITY_PORTAL_URL: "https://staging.example.com"
+              # the admin app (same host as its ingress): linked in the mail to the users who approve registrations (optional)
+              IDENTITY_ADMIN_URL: "https://admin.staging.example.com"
               IDENTITY_MFA_MODE: "optional"
               IDENTITY_MFA_ISSUER_NAME: "Example"
+              # Passkeys (WebAuthn). The RP ID is bound into every passkey: changing it later makes all of them unusable, so it is
+              # the domain the issuer, the portal and the admin app of this environment share, and stays.
+              IDENTITY_WEBAUTHN_RP_ID: "staging.example.com"
+              IDENTITY_WEBAUTHN_ORIGINS: "https://auth.staging.example.com,https://staging.example.com,https://admin.staging.example.com"
               # CIDR of the ingress controller (client IP of the rate limits)
               IDENTITY_TRUSTED_PROXIES: "10.0.0.0/8"
               POSTGRES_HOST: "postgres-external.infrastructure.svc.cluster.local"
@@ -70,7 +75,7 @@ spec:
                 - name: POSTGRES_USER
                   value: "data-user-rw"
                 - name: SETUP_CONFIG
-                  value: '{"admin":{"email":"admin@staging.example.com"},"clients":[{"id":"gatekeeper","type":"confidential","resource":"gatekeeper","secret_env":"GATEKEEPER_CLIENT_SECRET","backchannel_logout_uri":"http://gatekeeper.application.svc/auth/backchannel-logout","redirect_uris":["https://api.staging.example.com/auth/callback"],"post_logout_uris":["https://admin.staging.example.com/","https://dict.staging.example.com/","https://bill.staging.example.com/","https://staging.example.com/"],"grants":["authorization_code","refresh_token","client_credentials","urn:ietf:params:oauth:grant-type:token-exchange"]},{"id":"dictionary","type":"confidential","resource":"dictionary","secret_env":"DICTIONARY_CLIENT_SECRET","grants":["client_credentials","urn:ietf:params:oauth:grant-type:token-exchange"]}],"exchange_policies":[{"client":"gatekeeper","audience":"identity","max_depth":1},{"client":"gatekeeper","audience":"dictionary","max_depth":1},{"client":"dictionary","audience":"identity","max_depth":2}]}'
+                  value: '{"admin":{"email":"admin@staging.example.com"},"clients":[{"id":"gatekeeper","type":"confidential","resource":"gatekeeper","secret_env":"GATEKEEPER_CLIENT_SECRET","backchannel_logout_uri":"http://gatekeeper.application.svc/auth/backchannel-logout","redirect_uris":["https://api.staging.example.com/auth/callback"],"post_logout_uris":["https://admin.staging.example.com/","https://dict.staging.example.com/","https://bill.staging.example.com/","https://staging.example.com/"],"grants":["authorization_code","refresh_token","client_credentials","urn:ietf:params:oauth:grant-type:token-exchange"]},{"id":"dictionary","type":"confidential","resource":"dictionary","secret_env":"DICTIONARY_CLIENT_SECRET","roles":["service_registrar"],"grants":["client_credentials","urn:ietf:params:oauth:grant-type:token-exchange"]},{"id":"courier","type":"confidential","resource":"courier","secret_env":"COURIER_CLIENT_SECRET","roles":["service_registrar","user_directory"],"grants":["client_credentials"]}],"exchange_policies":[{"client":"gatekeeper","audience":"identity","max_depth":1},{"client":"gatekeeper","audience":"dictionary","max_depth":1},{"client":"dictionary","audience":"identity","max_depth":2},{"client":"gatekeeper","audience":"courier","max_depth":1},{"client":"courier","audience":"identity","max_depth":1}]}'
           secrets:
             - name: POSTGRES_PASSWORD
               secretName: postgres-data-rw-credentials
@@ -83,6 +88,9 @@ spec:
               key: secret
             - name: DICTIONARY_CLIENT_SECRET
               secretName: dictionary-client
+              key: secret
+            - name: COURIER_CLIENT_SECRET
+              secretName: courier-client
               key: secret
   destination:
     name: in-cluster

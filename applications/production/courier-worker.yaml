@@ -1,4 +1,4 @@
-# ArgoCD Application: courier-worker (production), consumes the Redis stream and sends email and Telegram.
+# ArgoCD Application: courier-worker (production), consumes the Redis stream and sends e-mail, Telegram, webhooks and browser notifications.
 # SAMPLE revision: replace with a version that exists in oci://ghcr.io/huponx/charts/courier-worker before merging.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -23,14 +23,31 @@ spec:
               SERVICE_NAME: "courier-worker"
               REDIS_HOST: "redis-external.infrastructure.svc.cluster.local"
               REDIS_PORT: "6379"
+              # State and queue: PostgreSQL (tables courier_*) and Redis. The worker also runs the relay, the retries, the digest
+              # and the listening to the Telegram bot (one worker at a time holds the lock).
+              POSTGRES_HOST: "postgres-external.infrastructure.svc.cluster.local"
+              POSTGRES_DB: "data"
+              POSTGRES_USER: "data-user-rw"
+              # Web Push: the contact the push services may write to and the PUBLIC key (the same as courier's); the private key is a Secret.
+              VAPID_SUBJECT: "mailto:home.annoucement@gmail.com"
+              VAPID_PUBLIC_KEY: "BPFU2LQbJTF2uwXRycGGZfkKnPHFC_kxumt6vghkOtt6dbhukQv5e9etUCqdy4ESPOrYAHgIFJQTxP1RUKJp-io"
               SMTP_HOST: "smtp.gmail.com"
               SMTP_PORT: "587"
               SMTP_USER: "home.annoucement@gmail.com"
               SMTP_FROM: "MMFamily <home.annoucement@gmail.com>"
+              # name and logo at the top of every HTML mail (same name as IDENTITY_MFA_ISSUER_NAME; the logo is served by identity); a caller can override both
+              MAIL_BRAND: "MoMoFamily"
+              MAIL_LOGO_URL: "https://auth.momofamily.top/logo-mail.png"
           secrets:
             - name: REDIS_PASSWORD
               secretName: redis-local-credentials
               key: password
+            - name: POSTGRES_PASSWORD
+              secretName: postgres-data-rw-credentials
+              key: password
+            - name: VAPID_PRIVATE_KEY
+              secretName: courier-vapid
+              key: private-key
             - name: SMTP_PASSWORD
               secretName: gmail-smtp-credentials
               key: password

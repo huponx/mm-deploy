@@ -41,6 +41,11 @@ spec:
                   value: "/var/run/secrets/courier/token"
                 - name: NOTIFY_LOCALE
                   value: "vi"
+                # Optional: the id of the identity user who gets the messages in the Telegram chat they linked in the portal
+                # (Settings, Notifications); it wins over TELEGRAM_CHAT_ID below and courier applies that user's choices.
+                # Add it after the user linked Telegram, and drop TELEGRAM_CHAT_ID only when messages arrive.
+                # - name: BVCHAIN_NOTIFY_USER_ID
+                #   value: "<user id>"
                 # "true" sends a Telegram message after each successful check-in / check-out (template bvchain_checkin/bvchain_checkout)
                 - name: NOTIFICATION_SUCCESS_ENABLED
                   value: "false"

@@ -1,4 +1,4 @@
-# ArgoCD Application: courier (production), gRPC notification gateway.
+# ArgoCD Application: courier (production), notification service (gRPC: Notify, inbox, preferences, admin; state in PostgreSQL).
 # Chart and image are published to ghcr.io by the courier CI/CD; targetRevision is updated by its deployment PRs.
 # SAMPLE revision: replace with a version that exists in oci://ghcr.io/huponx/charts/courier before merging.
 apiVersion: argoproj.io/v1alpha1
@@ -33,10 +33,34 @@ spec:
                 - application:identity
                 - application:bvchain
                 - application:bvreport
+              # The notification state lives in PostgreSQL (tables courier_*, created by db-migration): the shared database.
+              POSTGRES_HOST: "postgres-external.infrastructure.svc.cluster.local"
+              POSTGRES_DB: "data"
+              POSTGRES_USER: "data-user-rw"
+              # The inbox and the settings of the users are called through the gateway with a token that identity issued for
+              # the audience `courier` (policy gatekeeper -> courier), verified with the keys of identity.
+              COURIER_ISSUER: "https://auth.momofamily.top"
+              COURIER_JWKS_URL: "http://identity.application.svc.cluster.local:8080/.well-known/jwks.json"
+              # Notify(user_ids) asks identity for the e-mail and language of a user, and the permissions of the admin screens
+              # are registered with identity at start: client `courier` (roles service_registrar and user_directory,
+              # policy courier -> identity), created by the setup Job of identity.yaml.
+              IDENTITY_TARGET: "identity.application.svc.cluster.local:9090"
+              IDENTITY_TOKEN_URL: "http://identity.application.svc.cluster.local:8080/oauth2/token"
+              IDENTITY_CLIENT_ID: "courier"
+              # The bot of the "Link Telegram" button in the portal (the username without @); empty hides the button.
+              TELEGRAM_BOT_USERNAME: "mmfamilynoti_bot"
+              # Web Push: the PUBLIC VAPID key (`courierctl vapid`); empty hides the switch in the portal.
+              VAPID_PUBLIC_KEY: "BPFU2LQbJTF2uwXRycGGZfkKnPHFC_kxumt6vghkOtt6dbhukQv5e9etUCqdy4ESPOrYAHgIFJQTxP1RUKJp-io"
           secrets:
             - name: REDIS_PASSWORD
               secretName: redis-local-credentials
               key: password
+            - name: POSTGRES_PASSWORD
+              secretName: postgres-data-rw-credentials
+              key: password
+            - name: IDENTITY_CLIENT_SECRET
+              secretName: courier-client
+              key: secret
           autoscaling:
             enabled: true
             minReplicas: 1

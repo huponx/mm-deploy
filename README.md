@@ -50,6 +50,19 @@ Courier in `dev`, `staging` and `production` accepts only Kubernetes ServiceAcco
 
 Courier's own ServiceAccount and the `system:auth-delegator` ClusterRoleBinding it needs to verify tokens come from the chart (cluster scoped, the `default` ArgoCD project allows it; a restricted AppProject must whitelist `ClusterRoleBinding`). Only `ENV=local` (a laptop) has optional auth.
 
+### Courier as the notification service
+
+Besides the ServiceAccount callers above, courier serves the web apps (the bell, Settings, the admin screens) through the gateway and keeps its state in PostgreSQL. `applications/<env>/courier.yaml` and `courier-worker.yaml` therefore carry:
+
+- **PostgreSQL** (`POSTGRES_HOST/DB/USER` and the Secret `postgres-data-rw-credentials`) in both; the `courier_*` tables come from `db-migration` (V41 to V48), which must be released first.
+- **identity** in `courier.yaml`: `COURIER_ISSUER` and `COURIER_JWKS_URL` (user tokens for audience `courier`), `IDENTITY_TARGET`, `IDENTITY_TOKEN_URL`, `IDENTITY_CLIENT_ID: courier` and the Secret `courier-client` (`secret`). The client `courier` (roles `service_registrar` and `user_directory`, V49) and the exchange policies `gatekeeper -> courier` and `courier -> identity` come from the `setup:` block of `identity.yaml`, which also needs the Secret `courier-client`. Courier registers its `courier:*` permissions with identity at start and exits when it cannot within two minutes, so identity's Job must have run before courier is synced.
+- **Telegram and Web Push**: `TELEGRAM_BOT_USERNAME` and `VAPID_PUBLIC_KEY` in `courier.yaml`; `VAPID_SUBJECT`, `VAPID_PUBLIC_KEY` and the Secret `courier-vapid` (`private-key`) in `courier-worker.yaml`. They are empty in the files: fill them when the bot and the key pair exist (`courier/docs/setup-notification.md`); empty hides the matching switch in the portal.
+- **Metrics**: both charts annotate the pods for Prometheus (`:9100`); the alert rules and the dashboard are in `courier/docs/`.
+- The gateway needs no new value: the courier routes are in the gatekeeper chart and its upstream `courier` is `courier.application.svc.cluster.local:9090`. The ingress keeps the nginx default read timeout (60 s), which is above the 25 s heartbeat of the SSE stream.
+- `bvchain.yaml` has a commented `BVCHAIN_NOTIFY_USER_ID` to send to the Telegram chat a user linked in the portal instead of the fixed `TELEGRAM_CHAT_ID`.
+
+Step by step (order, checks, troubleshooting): `courier/docs/setup-notification.md` in the courier repository.
+
 ### identity and gatekeeper
 
 `applications/<env>/identity.yaml` deploys the OAuth/OIDC provider (`identity` repo; HTTP on the ingress host, gRPC inside the cluster). Its signing key, MFA key and database password are existing Secrets (`identity-signing-key`, `identity-mfa-key`, `postgres-data-rw-credentials`), created by `mm-ansible` `k8s_secrets` from its vault (README of mm-ansible, "Identity and gatekeeper secrets"; never `kubectl create secret`); the schema comes from `db-migration`. Identity calls courier (password reset, MFA notices) with its ServiceAccount token, so `system:serviceaccount:application:identity` is in `COURIER_AUTH_ALLOWED` of every courier Application. The first admin, the `gatekeeper` client and its exchange policy come from the `setup:` block of the file (the identity setup Job, an ArgoCD PostSync hook; secrets `identity-admin` and `gatekeeper-client`). Remove that block after the Job succeeded and the admin changed the temporary password (identity README, "Initial setup Job").
