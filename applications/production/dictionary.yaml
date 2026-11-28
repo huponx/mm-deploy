@@ -36,6 +36,9 @@ spec:
               POSTGRES_HOST: "postgres-external.infrastructure.svc.cluster.local"
               POSTGRES_DB: "data"
               POSTGRES_USER: "data-user-rw"
+              # TLS
+              GRPC_TLS_CERT_FILE: "/var/run/tls/tls.crt"
+              GRPC_TLS_KEY_FILE: "/var/run/tls/tls.key"
           # Existing Secret, never in git (mm-ansible `k8s_secrets`).
           secrets:
             - name: POSTGRES_PASSWORD
