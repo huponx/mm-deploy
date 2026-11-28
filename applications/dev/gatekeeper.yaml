@@ -24,6 +24,14 @@ spec:
     helm:
       releaseName: gatekeeper
       valuesObject:
+        routes:
+          upstreams:
+            identity:
+              insecure: false
+            courier:
+              insecure: false
+            dictionary:
+              insecure: false
         application:
           config:
             data:
@@ -39,6 +47,9 @@ spec:
               GATEKEEPER_IDENTITY_ISSUER: "https://auth.dev.example.com"
               GATEKEEPER_CLIENT_ID: "gatekeeper"
               GATEKEEPER_AUDIENCE: "gatekeeper"
+              # HTTPS listener (HTTPS_ADDR of the chart) for the back-channel logout of identity; certificate: infra-services/dev/certificates/gatekeeper.yaml
+              GRPC_TLS_CERT_FILE: "/var/run/tls-server/tls.crt"
+              GRPC_TLS_KEY_FILE: "/var/run/tls-server/tls.key"
               REDIS_HOST: "redis-external.infrastructure.svc.cluster.local"
               REDIS_PORT: "6379"
           secrets:

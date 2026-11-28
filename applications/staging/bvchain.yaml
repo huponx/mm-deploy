@@ -37,6 +37,10 @@ spec:
                 # courier authorizes the ServiceAccount of this job (COURIER_AUTH_ALLOWED in courier.yaml)
                 - name: COURIER_TARGET
                   value: "courier.application.svc.cluster.local:9090"
+                - name: COURIER_INSECURE
+                  value: "false"
+                - name: GRPC_TLS_CA_FILE
+                  value: "/var/run/tls/ca.crt"
                 - name: COURIER_TOKEN_FILE
                   value: "/var/run/secrets/courier/token"
                 - name: NOTIFY_LOCALE

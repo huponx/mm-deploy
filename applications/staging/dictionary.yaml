@@ -25,12 +25,15 @@ spec:
               # Callers send a token that identity issued for the audience `dictionary` (token exchange of
               # gatekeeper, policy gatekeeper -> dictionary); it is verified with the keys of identity.
               DICTIONARY_ISSUER: "https://auth.staging.example.com"
-              DICTIONARY_JWKS_URL: "http://identity.application.svc.cluster.local:8080/.well-known/jwks.json"
+              DICTIONARY_JWKS_URL: "https://identity.application.svc.cluster.local:8443/.well-known/jwks.json"
               DICTIONARY_AUTH_AUDIENCE: "dictionary"
               # Preferences of the users live in identity: dictionary exchanges the token of the request for one
               # for `identity` (client `dictionary`, policy dictionary -> identity, max depth 2) and calls its gRPC API.
               DICTIONARY_IDENTITY_ADDR: "identity.application.svc.cluster.local:9090"
-              DICTIONARY_TOKEN_URL: "http://identity.application.svc.cluster.local:8080/oauth2/token"
+              DICTIONARY_IDENTITY_INSECURE: "false"
+              GRPC_TLS_CERT_FILE: "/var/run/tls/tls.crt"
+              GRPC_TLS_KEY_FILE: "/var/run/tls/tls.key"
+              DICTIONARY_TOKEN_URL: "https://identity.application.svc.cluster.local:8443/oauth2/token"
               DICTIONARY_CLIENT_ID: "dictionary"
               POSTGRES_HOST: "postgres-external.infrastructure.svc.cluster.local"
               POSTGRES_DB: "data"
