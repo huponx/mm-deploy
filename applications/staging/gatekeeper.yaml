@@ -29,6 +29,7 @@ spec:
             identity:
               insecure: false
             courier:
+              target: "courier.application.svc.cluster.local:9090"
               insecure: false
             dictionary:
               insecure: false
