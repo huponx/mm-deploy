@@ -36,12 +36,16 @@ spec:
               IDENTITY_WEBAUTHN_ORIGINS: "https://auth.momofamily.top,https://momofamily.top,https://admin.momofamily.top"
               # CIDR of the ingress controller (client IP of the rate limits)
               IDENTITY_TRUSTED_PROXIES: "10.0.0.0/8"
+              IDENTITY_INSECURE: "false"
               POSTGRES_HOST: "postgres-external.infrastructure.svc.cluster.local"
               POSTGRES_DB: "data"
               POSTGRES_USER: "data-user-rw"
               REDIS_HOST: "redis-external.infrastructure.svc.cluster.local"
               REDIS_PORT: "6379"
               COURIER_TARGET: "courier.application.svc.cluster.local:9090"
+              # TLS
+              GRPC_TLS_CERT_FILE: "/var/run/tls/tls.crt"
+              GRPC_TLS_KEY_FILE: "/var/run/tls/tls.key"
           # Existing Secrets, never in git: created by mm-ansible (`k8s_secrets`, values in its vault). The signing key
           # Secret `identity-signing-key` (key signing.pem) is mounted by the chart.
           secrets:

@@ -32,6 +32,7 @@ spec:
               DICTIONARY_IDENTITY_ADDR: "identity.application.svc.cluster.local:9090"
               DICTIONARY_TOKEN_URL: "http://identity.application.svc.cluster.local:8080/oauth2/token"
               DICTIONARY_CLIENT_ID: "dictionary"
+              DICTIONARY_IDENTITY_INSECURE: "false"
               POSTGRES_HOST: "postgres-external.infrastructure.svc.cluster.local"
               POSTGRES_DB: "data"
               POSTGRES_USER: "data-user-rw"
