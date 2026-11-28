@@ -15,7 +15,7 @@ spec:
   source:
     repoURL: ghcr.io/huponx/charts
     chart: dictionary-worker
-    targetRevision: "v2026.11.5-release-712069d"
+    targetRevision: "v2026.11.6-release-88ea968"
     helm:
       releaseName: dictionary-worker
       valuesObject:
