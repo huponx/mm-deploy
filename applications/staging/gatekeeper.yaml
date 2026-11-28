@@ -27,11 +27,13 @@ spec:
         routes:
           upstreams:
             identity:
+              target: "identity.application.svc.cluster.local:9090"
               insecure: false
             courier:
               target: "courier.application.svc.cluster.local:9090"
               insecure: false
             dictionary:
+              target: "dictionary.application.svc.cluster.local:9090"
               insecure: false
         application:
           config:
