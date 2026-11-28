@@ -49,6 +49,11 @@ spec:
                 # "true" sends a Telegram message after each successful check-in / check-out (template bvchain_checkin/bvchain_checkout)
                 - name: NOTIFICATION_SUCCESS_ENABLED
                   value: "false"
+                # TLS
+                - name: COURIER_INSECURE
+                  value: "false"
+                - name: GRPC_TLS_CA_FILE
+                  value: "/var/run/tls/ca.crt"
           secrets:
             - name: BV_PASSWORD
               secretName: job-bv-credentials
