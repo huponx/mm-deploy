@@ -37,6 +37,7 @@ spec:
               # CIDR of the ingress controller (client IP of the rate limits)
               IDENTITY_TRUSTED_PROXIES: "10.0.0.0/8"
               IDENTITY_INSECURE: "false"
+              COURIER_INSECURE: "false"
               POSTGRES_HOST: "postgres-external.infrastructure.svc.cluster.local"
               POSTGRES_DB: "data"
               POSTGRES_USER: "data-user-rw"

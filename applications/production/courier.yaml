@@ -51,6 +51,9 @@ spec:
               TELEGRAM_BOT_USERNAME: "mmfamilynoti_bot"
               # Web Push: the PUBLIC VAPID key (`courierctl vapid`); empty hides the switch in the portal.
               VAPID_PUBLIC_KEY: "BPFU2LQbJTF2uwXRycGGZfkKnPHFC_kxumt6vghkOtt6dbhukQv5e9etUCqdy4ESPOrYAHgIFJQTxP1RUKJp-io"
+              # TLS
+              GRPC_TLS_CERT_FILE: "/var/run/tls/tls.crt"
+              GRPC_TLS_KEY_FILE: "/var/run/tls/tls.key" 
           secrets:
             - name: REDIS_PASSWORD
               secretName: redis-local-credentials

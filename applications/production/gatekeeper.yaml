@@ -28,6 +28,8 @@ spec:
           upstreams:
             identity:
               insecure: false
+            courier:
+              insecure: false
         application:
           config:
             data:
