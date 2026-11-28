@@ -30,6 +30,8 @@ spec:
               insecure: false
             courier:
               insecure: false
+            dictionary:
+              insecure: false
         application:
           config:
             data:
